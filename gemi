@@ -1,7 +1,7 @@
 --[[
 ╔══════════════════════════════════════════════════════════════╗
-║                IKAN TONGKOL — Library (V1.1)                 ║
-║          Support: Drag, Scroll, Slider (Mouse/Touch)         ║
+║                IKAN TONGKOL — Library (V1.2)                 ║
+║          Full Fix: Close, Minimize, Drag, & Scroll           ║
 ╚══════════════════════════════════════════════════════════════╝
 ]]
 
@@ -36,13 +36,13 @@ local function HexToColor(hex)
     )
 end
 
--- ── Buat Hub ──────────────────────────────────────────────────────
+-- ── Main Library ──────────────────────────────────────────────────
 
 function IkanTongkol.new(options)
     local self = setmetatable({}, IkanTongkol)
     self.Name = options.Name or "IKAN TONGKOL"
     self.Game = options.Game or "Unknown Game"
-    self.Version = options.Version or "1.1.0"
+    self.Version = options.Version or "1.2.0"
     self._tabs = {}
     self._activeTab = nil
     self._rebuildConns = {}
@@ -51,6 +51,7 @@ function IkanTongkol.new(options)
 end
 
 function IkanTongkol:_buildGUI()
+    -- Hapus yang lama
     pcall(function()
         if PlayerGui:FindFirstChild("IkanTongkol") then
             PlayerGui:FindFirstChild("IkanTongkol"):Destroy()
@@ -75,7 +76,7 @@ function IkanTongkol:_buildGUI()
     New("UIStroke", { Color = Color3.fromRGB(40, 40, 60), Thickness = 1 }, win)
     self._win = win
 
-    -- Title bar (Drag Handler)
+    -- ── Title Bar ──
     local titlebar = New("Frame", {
         Name = "TitleBar",
         Size = UDim2.new(1, 0, 0, 44),
@@ -83,9 +84,7 @@ function IkanTongkol:_buildGUI()
         BorderSizePixel = 0,
     }, win)
     New("UICorner", { CornerRadius = UDim.new(0, 10) }, titlebar)
-    
-    -- Patch sudut bawah titlebar
-    New("Frame", {
+    New("Frame", { -- Fix sudut bawah
         Size = UDim2.new(1, 0, 0.5, 0),
         Position = UDim2.new(0, 0, 0.5, 0),
         BackgroundColor3 = Color3.fromRGB(14, 14, 24),
@@ -111,9 +110,16 @@ function IkanTongkol:_buildGUI()
         TextXAlignment = Enum.TextXAlignment.Left,
     }, titlebar)
 
-    -- Tombol Minimize & Close
-    local minimized = false
-    local body
+    -- ── Buttons (Close & Minimize) ──
+    local body -- Forward declare
+
+    local closeBtn = New("TextButton", {
+        Text = "✕", Size = UDim2.new(0, 34, 0, 34),
+        Position = UDim2.new(1, -40, 0, 5),
+        BackgroundTransparency = 1, TextColor3 = Color3.fromRGB(100, 100, 130),
+        TextSize = 13, Font = Enum.Font.GothamBold,
+    }, titlebar)
+
     local minBtn = New("TextButton", {
         Text = "−", Size = UDim2.new(0, 34, 0, 34),
         Position = UDim2.new(1, -76, 0, 5),
@@ -121,28 +127,30 @@ function IkanTongkol:_buildGUI()
         TextSize = 18, Font = Enum.Font.GothamBold,
     }, titlebar)
 
-    -- Body Setup
+    closeBtn.MouseButton1Click:Connect(function() win.Visible = false end)
+    closeBtn.MouseEnter:Connect(function() closeBtn.TextColor3 = Color3.fromRGB(255, 80, 80) end)
+    closeBtn.MouseLeave:Connect(function() closeBtn.TextColor3 = Color3.fromRGB(100, 100, 130) end)
+
+    -- ── Body ──
     body = New("Frame", {
         Name = "Body",
         Size = UDim2.new(1, 0, 1, -44),
         Position = UDim2.new(0, 0, 0, 44),
         BackgroundTransparency = 1,
-        BorderSizePixel = 0,
+        ClipsDescendants = true,
     }, win)
 
     minBtn.MouseButton1Click:Connect(function()
-        minimized = not minimized
-        body.Visible = not minimized
-        Tween(win, { Size = minimized and UDim2.new(0, 480, 0, 44) or UDim2.new(0, 480, 0, 440) }, 0.2)
+        local minimized = (win.Size.Y.Offset < 100)
+        Tween(win, { Size = not minimized and UDim2.new(0, 480, 0, 44) or UDim2.new(0, 480, 0, 440) }, 0.2)
+        body.Visible = minimized
     end)
 
-    -- Drag Logic (Tangan & Mouse)
+    -- Drag Logic
     local dragging, dragStart, dragOrigin
     titlebar.InputBegan:Connect(function(inp)
         if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = inp.Position
-            dragOrigin = win.Position
+            dragging = true; dragStart = inp.Position; dragOrigin = win.Position
         end
     end)
     UserInputService.InputChanged:Connect(function(inp)
@@ -155,22 +163,21 @@ function IkanTongkol:_buildGUI()
         if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then dragging = false end
     end)
 
-    -- Sidebar & Content Area
+    -- ── Sidebar & Content ──
     local sidebar = New("Frame", {
         Size = UDim2.new(0, 76, 1, 0),
         BackgroundColor3 = Color3.fromRGB(7, 7, 14),
         BorderSizePixel = 0,
     }, body)
     
-    local tabList = New("ScrollingFrame", {
+    self._tabList = New("ScrollingFrame", {
         Size = UDim2.new(1, 0, 1, 0),
         BackgroundTransparency = 1,
         ScrollBarThickness = 0,
-        CanvasSize = UDim2.new(0, 0, 0, 0),
-        AutomaticCanvasSize = Enum.AutomaticSize.Y
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        CanvasSize = UDim2.new(0,0,0,0)
     }, sidebar)
-    New("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 2) }, tabList)
-    self._tabList = tabList
+    New("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 2) }, self._tabList)
 
     local content = New("Frame", {
         Size = UDim2.new(1, -76, 1, 0),
@@ -189,11 +196,10 @@ function IkanTongkol:_buildGUI()
         Size = UDim2.new(1, 0, 1, -36),
         Position = UDim2.new(0, 0, 0, 36),
         BackgroundTransparency = 1,
-        BorderSizePixel = 0,
         ScrollBarThickness = 3,
         ScrollBarImageColor3 = Color3.fromRGB(50, 50, 80),
-        CanvasSize = UDim2.new(0, 0, 0, 0),
-        AutomaticCanvasSize = Enum.AutomaticSize.Y
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        CanvasSize = UDim2.new(0,0,0,0)
     }, content)
     New("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 3) }, self._scroll)
     New("UIPadding", { PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 10), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8) }, self._scroll)
@@ -237,12 +243,12 @@ end
 function IkanTongkol:_switchTab(tabData)
     for _, t in ipairs(self._tabs) do
         t._btn.BackgroundTransparency = 1
-        Tween(t._dot, { BackgroundColor3 = Color3.fromRGB(60, 60, 80) }, 0.1)
-        Tween(t._lbl, { TextColor3 = Color3.fromRGB(60, 60, 80) }, 0.1)
+        Tween(t._dot, { BackgroundColor3 = Color3.fromRGB(60, 60, 80) })
+        Tween(t._lbl, { TextColor3 = Color3.fromRGB(60, 60, 80) })
     end
     self._activeTab = tabData
-    Tween(tabData._dot, { BackgroundColor3 = tabData.color }, 0.1)
-    Tween(tabData._lbl, { TextColor3 = tabData.color }, 0.1)
+    Tween(tabData._dot, { BackgroundColor3 = tabData.color })
+    Tween(tabData._lbl, { TextColor3 = tabData.color })
     self._headerLabel.Text = tabData.label:upper()
     self._headerLabel.TextColor3 = tabData.color
     self:_rebuild()
@@ -263,11 +269,12 @@ function IkanTongkol:_rebuild()
         if ctrl.kind == "section" then
             local row = New("Frame", { Size = UDim2.new(1, 0, 0, 26), BackgroundTransparency = 1, LayoutOrder = i }, self._scroll)
             New("TextLabel", { Text = ctrl.name:upper(), Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, TextColor3 = c, TextSize = 9, Font = Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left }, row)
-        
+            New("Frame", { Size = UDim2.new(1, 0, 0, 1), Position = UDim2.new(0, 0, 1, -1), BackgroundColor3 = Color3.fromRGB(30, 30, 50), BorderSizePixel = 0 }, row)
+
         elseif ctrl.kind == "toggle" then
             local row = New("Frame", { Size = UDim2.new(1, 0, 0, 40), BackgroundColor3 = Color3.fromRGB(15, 15, 25), LayoutOrder = i }, self._scroll)
             New("UICorner", { CornerRadius = UDim.new(0, 7) }, row)
-            local rowLbl = New("TextLabel", { Text = ctrl.name, Size = UDim2.new(1, -70, 1, 0), Position = UDim2.new(0, 12, 0, 0), BackgroundTransparency = 1, TextColor3 = ctrl.value and Color3.fromRGB(255,255,255) or Color3.fromRGB(120,120,120), TextSize = 12, Font = Enum.Font.Gotham, TextXAlignment = Enum.TextXAlignment.Left }, row)
+            local lbl = New("TextLabel", { Text = ctrl.name, Size = UDim2.new(1, -70, 1, 0), Position = UDim2.new(0, 12, 0, 0), BackgroundTransparency = 1, TextColor3 = ctrl.value and Color3.fromRGB(255,255,255) or Color3.fromRGB(120,120,120), TextSize = 12, Font = Enum.Font.Gotham, TextXAlignment = Enum.TextXAlignment.Left }, row)
             local pill = New("Frame", { Size = UDim2.new(0, 36, 0, 20), Position = UDim2.new(1, -48, 0.5, -10), BackgroundColor3 = ctrl.value and c or Color3.fromRGB(40,40,40) }, row)
             New("UICorner", { CornerRadius = UDim.new(1, 0) }, pill)
             local knob = New("Frame", { Size = UDim2.new(0, 14, 0, 14), Position = ctrl.value and UDim2.new(0, 19, 0.5, -7) or UDim2.new(0, 3, 0.5, -7), BackgroundColor3 = Color3.fromRGB(255,255,255) }, pill)
@@ -276,6 +283,7 @@ function IkanTongkol:_rebuild()
                 ctrl.value = not ctrl.value
                 Tween(pill, { BackgroundColor3 = ctrl.value and c or Color3.fromRGB(40,40,40) })
                 Tween(knob, { Position = ctrl.value and UDim2.new(0, 19, 0.5, -7) or UDim2.new(0, 3, 0.5, -7) })
+                lbl.TextColor3 = ctrl.value and Color3.fromRGB(255,255,255) or Color3.fromRGB(120,120,120)
                 if ctrl.callback then ctrl.callback(ctrl.value) end
             end)
 
@@ -298,7 +306,6 @@ function IkanTongkol:_rebuild()
                 valLbl.Text = tostring(val)..ctrl.unit
                 if ctrl.callback then ctrl.callback(val) end
             end
-            
             track.InputBegan:Connect(function(inp) if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then slideDrag = true; applySlider(inp.Position.X) end end)
             table.insert(self._rebuildConns, UserInputService.InputChanged:Connect(function(inp) if slideDrag and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) then applySlider(inp.Position.X) end end))
             table.insert(self._rebuildConns, UserInputService.InputEnded:Connect(function(inp) if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then slideDrag = false end end))
