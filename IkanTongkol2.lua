@@ -2,7 +2,7 @@
 ╔══════════════════════════════════════════════════════════════╗
 ║                 IKAN TONGKOL — Library                       ║
 ║        github.com/yourname/ikan-tongkol/IkanTongkol.lua      ║
-║                                                              ║
+║                                   fix                           ║
 ║  File ini adalah mesin GUI-nya. JANGAN DIEDIT.               ║
 ║  Edit hub-config.lua untuk tambah fitur.                     ║
 ╚══════════════════════════════════════════════════════════════╝
@@ -76,7 +76,6 @@ function IkanTongkol:_buildGUI()
         Position         = UDim2.new(0.5, -240, 0.5, -220),
         BackgroundColor3 = Color3.fromRGB(10, 10, 18),
         BorderSizePixel  = 0,
-        ClipsDescendants = true,
     }, gui)
     New("UICorner",  { CornerRadius = UDim.new(0, 10) }, win)
     New("UIStroke",  { Color = Color3.fromRGB(40, 40, 60), Thickness = 1 }, win)
@@ -119,6 +118,7 @@ function IkanTongkol:_buildGUI()
 
     -- Tombol minimize
     local minimized = false
+    local body -- forward-declare agar bisa diakses di callback minimize
     local minBtn = New("TextButton", {
         Text             = "−",
         Size             = UDim2.new(0, 34, 0, 34),
@@ -130,7 +130,13 @@ function IkanTongkol:_buildGUI()
     }, titlebar)
     minBtn.MouseButton1Click:Connect(function()
         minimized = not minimized
-        Tween(win, { Size = minimized and UDim2.new(0, 480, 0, 44) or UDim2.new(0, 480, 0, 440) }, 0.2)
+        if minimized then
+            body.Visible = false
+            Tween(win, { Size = UDim2.new(0, 480, 0, 44) }, 0.2)
+        else
+            body.Visible = true
+            Tween(win, { Size = UDim2.new(0, 480, 0, 440) }, 0.2)
+        end
     end)
     minBtn.MouseEnter:Connect(function() minBtn.TextColor3 = Color3.fromRGB(220, 220, 235) end)
     minBtn.MouseLeave:Connect(function() minBtn.TextColor3 = Color3.fromRGB(100, 100, 130) end)
@@ -175,7 +181,7 @@ function IkanTongkol:_buildGUI()
     end)
 
     -- ── Body ──────────────────────────────────────────────────────
-    local body = New("Frame", {
+    body = New("Frame", {
         Name             = "Body",
         Size             = UDim2.new(1, 0, 1, -44),
         Position         = UDim2.new(0, 0, 0, 44),
