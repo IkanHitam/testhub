@@ -2,6 +2,8 @@ local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local VirtualUser = game:GetService("VirtualUser")
 
 local Custom = {} do
   Custom.ColorRGB = Color3.fromRGB(250, 7, 7)
@@ -11,126 +13,228 @@ local Custom = {} do
     if Parent then _instance.Parent = Parent end
     return _instance
   end
+  function Custom:EnabledAFK()
+    Player.Idled:Connect(function()
+      VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+      task.wait(1)
+      VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+    end)
+  end
 end
 
-local Speed_Library = {}
+Custom:EnabledAFK()
+
+local function OpenClose()
+  local ScreenGui = Custom:Create("ScreenGui", {ZIndexBehavior = Enum.ZIndexBehavior.Sibling}, Player:WaitForChild("PlayerGui"))
+  local Close_ImageButton = Custom:Create("ImageButton", {BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 1, Position = UDim2.new(0.1021, 0, 0.0743, 0), Size = UDim2.new(0, 59, 0, 49), Image = "rbxassetid://136890595976124", Visible = false}, ScreenGui)
+  local UICorner = Custom:Create("UICorner", { CornerRadius = UDim.new(0, 9) }, Close_ImageButton)
+  local dragging, dragStart, startPos = false, nil, nil
+  local function UpdateDraggable(input)
+    local delta = input.Position - dragStart
+    Close_ImageButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+  end
+  Close_ImageButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+      dragging = true dragStart = input.Position startPos = Close_ImageButton.Position
+      input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+    end
+  end)
+  Close_ImageButton.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then UpdateDraggable(input) end
+  end)
+  return Close_ImageButton
+end
+
+local Open_Close = OpenClose()
+
+local function MakeDraggable(topbarobject, object)
+  local dragging, dragStart, startPos = false, nil, nil
+  local function UpdatePos(input)
+    local delta = input.Position - dragStart
+    object.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+  end
+  topbarobject.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+      dragging = true dragStart = input.Position startPos = object.Position
+      input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+    end
+  end)
+  topbarobject.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then UpdatePos(input) end
+  end)
+end
+
+function CircleClick(Button, X, Y)
+	task.spawn(function()
+		Button.ClipsDescendants = true
+		local Circle = Instance.new("ImageLabel")
+		Circle.Image = "rbxassetid://106471194043211"
+		Circle.ImageColor3 = Color3.fromRGB(80, 80, 80)
+		Circle.ImageTransparency = 0.8999999761581421
+		Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		Circle.BackgroundTransparency = 1
+		Circle.ZIndex = 10
+		Circle.Name = "Circle"
+		Circle.Parent = Button
+		local NewX, NewY = X - Button.AbsolutePosition.X, Y - Button.AbsolutePosition.Y
+		Circle.Position = UDim2.new(0, NewX, 0, NewY)
+		local Size = math.max(Button.AbsoluteSize.X, Button.AbsoluteSize.Y) * 1.5
+		local Time = 0.5
+		local TweenInfo = TweenInfo.new(Time, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		local Tween = TweenService:Create(Circle, TweenInfo, {Size = UDim2.new(0, Size, 0, Size), Position = UDim2.new(0.5, -Size/2, 0.5, -Size/2)})
+		Tween:Play()
+		Tween.Completed:Connect(function()
+			for i = 1, 10 do Circle.ImageTransparency = Circle.ImageTransparency + 0.01 wait(Time / 10) end
+			Circle:Destroy()
+		end)
+	end)
+end
+
+local Speed_Library, Notification = {}, {}
+Speed_Library.Unloaded = false
 
 function Speed_Library:SetNotification(Config)
+  local Title = Config.Title or ""
+  local Content = Config.Content or ""
+  local Delay = Config.Delay or 5
   local NotificationGui = Custom:Create("ScreenGui", {ZIndexBehavior = Enum.ZIndexBehavior.Sibling}, Player:WaitForChild("PlayerGui"))
-  local Frame = Custom:Create("Frame", {Size = UDim2.new(0, 250, 0, 50), Position = UDim2.new(1, 0, 0.8, 0), BackgroundColor3 = Color3.fromRGB(25, 25, 25)}, NotificationGui)
-  Custom:Create("UICorner", {CornerRadius = UDim.new(0, 6)}, Frame)
-  Custom:Create("TextLabel", {Size = UDim2.new(1, -20, 1, 0), Position = UDim2.new(0, 10, 0, 0), Text = Config.Content or "", TextColor3 = Color3.new(1,1,1), BackgroundTransparency = 1, TextWrapped = true, Font = "Gotham", TextSize = 12}, Frame)
-  TweenService:Create(Frame, TweenInfo.new(0.4), {Position = UDim2.new(1, -260, 0.8, 0)}):Play()
-  task.delay(Config.Delay or 3, function() TweenService:Create(Frame, TweenInfo.new(0.4), {Position = UDim2.new(1, 0, 0.8, 0)}):Play() task.wait(0.4) NotificationGui:Destroy() end)
+  local Frame = Custom:Create("Frame", {Size = UDim2.new(0, 250, 0, 60), Position = UDim2.new(1, 0, 0.8, 0), BackgroundColor3 = Color3.fromRGB(20, 20, 20)}, NotificationGui)
+  Custom:Create("UICorner", {CornerRadius = UDim.new(0, 8)}, Frame)
+  Custom:Create("TextLabel", {Text = Content, Size = UDim2.new(1, -20, 1, 0), Position = UDim2.new(0, 10, 0, 0), TextColor3 = Color3.new(1,1,1), BackgroundTransparency = 1, TextWrapped = true}, Frame)
+  TweenService:Create(Frame, TweenInfo.new(0.5), {Position = UDim2.new(1, -270, 0.8, 0)}):Play()
+  task.delay(Delay, function()
+    TweenService:Create(Frame, TweenInfo.new(0.5), {Position = UDim2.new(1, 0, 0.8, 0)}):Play()
+    task.wait(0.5) NotificationGui:Destroy()
+  end)
 end
 
 function Speed_Library:CreateWindow(Config)
-  local Screen = Custom:Create("ScreenGui", {ZIndexBehavior = Enum.ZIndexBehavior.Sibling}, Player:WaitForChild("PlayerGui"))
-  local Main = Custom:Create("Frame", {Size = Config.SizeUi or UDim2.fromOffset(580, 420), Position = UDim2.new(0.5, -290, 0.5, -210), BackgroundColor3 = Color3.fromRGB(15, 15, 15)}, Screen)
-  Custom:Create("UICorner", {CornerRadius = UDim.new(0, 8)}, Main)
-  Custom:Create("UIStroke", {Color = Color3.fromRGB(40, 40, 40), Thickness = 2}, Main)
-  
-  local Top = Custom:Create("Frame", {Size = UDim2.new(1, 0, 0, 35), BackgroundTransparency = 1}, Main)
-  Custom:Create("TextLabel", {Text = Config.Title or "SNIPER", Size = UDim2.new(1, -40, 1, 0), Position = UDim2.new(0, 12, 0, 0), TextColor3 = Color3.new(1,1,1), BackgroundTransparency = 1, TextXAlignment = "Left", Font = "GothamBold", TextSize = 14}, Top)
-  
-  local Container = Custom:Create("ScrollingFrame", {Size = UDim2.new(1, -20, 1, -45), Position = UDim2.new(0, 10, 0, 40), BackgroundTransparency = 1, CanvasSize = UDim2.new(0,0,0,0), ScrollBarThickness = 3}, Main)
-  local Layout = Custom:Create("UIListLayout", {Padding = UDim.new(0, 10)}, Container)
-  Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() Container.CanvasSize = UDim2.new(0,0,0, Layout.AbsoluteContentSize.Y + 20) end)
+  local Title = Config.Title or ""
+  local SizeUi = Config.SizeUi or UDim2.fromOffset(580, 420)
+  local TabWidth = Config.TabWidth or 120
+
+  local SpeedHubXGui = Custom:Create("ScreenGui", { ZIndexBehavior = Enum.ZIndexBehavior.Sibling }, Player:WaitForChild("PlayerGui"))
+  local DropShadowHolder = Custom:Create("Frame", { BackgroundTransparency = 1, Size = SizeUi, Position = UDim2.new(0.5, -SizeUi.X.Offset/2, 0.5, -SizeUi.Y.Offset/2) }, SpeedHubXGui)
+  local Main = Custom:Create("Frame", { Size = UDim2.new(1,0,1,0), BackgroundColor3 = Color3.fromRGB(15, 15, 15), Parent = DropShadowHolder })
+  Custom:Create("UICorner", {}, Main)
+  Custom:Create("UIStroke", { Color = Color3.fromRGB(50, 50, 50), Thickness = 1.6 }, Main)
+
+  local Top = Custom:Create("Frame", { Size = UDim2.new(1, 0, 0, 38), BackgroundTransparency = 1, Parent = Main })
+  local TextLabel = Custom:Create("TextLabel", { Font = "GothamBold", Text = Title, TextColor3 = Color3.new(1,1,1), TextSize = 14, BackgroundTransparency = 1, Size = UDim2.new(1, -100, 1, 0), Position = UDim2.new(0, 12, 0, 0), TextXAlignment = "Left", Parent = Top })
+  local Close = Custom:Create("TextButton", { Text = "X", Size = UDim2.new(0, 25, 0, 25), Position = UDim2.new(1, -30, 0.5, -12), BackgroundTransparency = 1, TextColor3 = Color3.new(1,1,1), Parent = Top })
+  Close.Activated:Connect(function() SpeedHubXGui:Destroy() end)
+  MakeDraggable(Top, DropShadowHolder)
+
+  local LayersTab = Custom:Create("Frame", { Size = UDim2.new(0, TabWidth, 1, -50), Position = UDim2.new(0, 10, 0, 45), BackgroundTransparency = 1, Parent = Main })
+  local ScrollTab = Custom:Create("ScrollingFrame", { Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, CanvasSize = UDim2.new(0,0,0,0), ScrollBarThickness = 0, Parent = LayersTab })
+  Custom:Create("UIListLayout", { Padding = UDim.new(0, 5) }, ScrollTab)
+
+  local Layers = Custom:Create("Frame", { Size = UDim2.new(1, -TabWidth - 25, 1, -50), Position = UDim2.new(0, TabWidth + 15, 0, 45), BackgroundTransparency = 1, Parent = Main })
+  local LayersFolder = Custom:Create("Folder", { Parent = Layers })
+  local LayersPageLayout = Custom:Create("UIPageLayout", { TweenTime = 0.5, Parent = LayersFolder, SortOrder = Enum.SortOrder.LayoutOrder })
 
   local Tabs = {}
-  function Tabs:AddSection(Title, Open)
-    local SecFrame = Custom:Create("Frame", {Size = UDim2.new(1, 0, 0, 25), BackgroundColor3 = Color3.fromRGB(35, 35, 35)}, Container)
-    Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, SecFrame)
-    Custom:Create("TextLabel", {Text = "  " .. Title, Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, TextColor3 = Custom.ColorRGB, TextXAlignment = "Left", Font = "GothamBold", TextSize = 12}, SecFrame)
-    
-    local Content = Custom:Create("Frame", {Size = UDim2.new(1, 0, 0, 0), BackgroundTransparency = 1}, Container)
-    local CLay = Custom:Create("UIListLayout", {Padding = UDim.new(0, 5)}, Content)
-    CLay:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() Content.Size = UDim2.new(1,0,0, CLay.AbsoluteContentSize.Y) end)
+  local CountTab = 0
+  local CountDropdown = 0
 
-    local Items = {}
-    
-    function Items:AddToggle(Cfg)
-        local TFrame = Custom:Create("Frame", {Size = UDim2.new(1, 0, 0, 30), BackgroundColor3 = Color3.fromRGB(25, 25, 25)}, Content)
-        Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, TFrame)
-        local TBtn = Custom:Create("TextButton", {Text = (Cfg.Default and "ON" or "OFF"), Size = UDim2.new(0, 50, 0, 20), Position = UDim2.new(1, -55, 0.5, -10), BackgroundColor3 = (Cfg.Default and Custom.ColorRGB or Color3.fromRGB(50, 50, 50)), TextColor3 = Color3.new(1,1,1), Font = "GothamBold", TextSize = 10}, TFrame)
-        Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, TBtn)
-        Custom:Create("TextLabel", {Text = Cfg.Title, Size = UDim2.new(1, -70, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, TextColor3 = Color3.new(1,1,1), TextXAlignment = "Left", Font = "Gotham", TextSize = 12}, TFrame)
-        TBtn.Activated:Connect(function()
-            Cfg.Default = not Cfg.Default
-            TBtn.Text = Cfg.Default and "ON" or "OFF"
-            TBtn.BackgroundColor3 = Cfg.Default and Custom.ColorRGB or Color3.fromRGB(50, 50, 50)
-            Cfg.Callback(Cfg.Default)
+  function Tabs:CreateTab(TabConfig)
+    local TabName = TabConfig.Name or "Tab"
+    local ScrolLayers = Custom:Create("ScrollingFrame", { Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, CanvasSize = UDim2.new(0,0,0,0), ScrollBarThickness = 2, Parent = LayersFolder })
+    Custom:Create("UIListLayout", { Padding = UDim.new(0, 10) }, ScrolLayers)
+    local TabBtn = Custom:Create("TextButton", { Text = TabName, Size = UDim2.new(1, 0, 0, 30), BackgroundColor3 = Color3.fromRGB(30, 30, 30), TextColor3 = Color3.new(1,1,1), Parent = ScrollTab })
+    Custom:Create("UICorner", {CornerRadius = UDim.new(0,4)}, TabBtn)
+    TabBtn.Activated:Connect(function() CircleClick(TabBtn, Player:GetMouse().X, Player:GetMouse().Y) LayersPageLayout:JumpTo(ScrolLayers) end)
+
+    local Sections = {}
+    function Sections:AddSection(Title, Open)
+      local SectionFrame = Custom:Create("Frame", { Size = UDim2.new(1, 0, 0, 0), BackgroundTransparency = 1, Parent = ScrolLayers })
+      local SecList = Custom:Create("UIListLayout", { Padding = UDim.new(0, 5) }, SectionFrame)
+      SecList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() SectionFrame.Size = UDim2.new(1, 0, 0, SecList.AbsoluteContentSize.Y) end)
+      Custom:Create("TextLabel", { Text = Title, Size = UDim2.new(1, 0, 0, 20), BackgroundTransparency = 1, TextColor3 = Custom.ColorRGB, TextXAlignment = "Left", Font = "GothamBold", Parent = SectionFrame })
+
+      local Items = {}
+
+      function Items:AddToggle(Cfg)
+        local F = Custom:Create("Frame", {Size = UDim2.new(1, 0, 0, 30), BackgroundColor3 = Color3.fromRGB(25, 25, 25), Parent = SectionFrame})
+        Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, F)
+        Custom:Create("TextLabel", {Text = Cfg.Title, Size = UDim2.new(1, -60, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, TextColor3 = Color3.new(1,1,1), TextXAlignment = "Left", Parent = F})
+        local B = Custom:Create("TextButton", {Text = (Cfg.Default and "ON" or "OFF"), Size = UDim2.new(0, 45, 0, 20), Position = UDim2.new(1, -50, 0.5, -10), BackgroundColor3 = (Cfg.Default and Custom.ColorRGB or Color3.fromRGB(60,60,60)), Parent = F})
+        B.Activated:Connect(function() Cfg.Default = not Cfg.Default B.Text = Cfg.Default and "ON" or "OFF" B.BackgroundColor3 = Cfg.Default and Custom.ColorRGB or Color3.fromRGB(60,60,60) Cfg.Callback(Cfg.Default) end)
+      end
+
+      function Items:AddInput(Cfg)
+        local F = Custom:Create("Frame", {Size = UDim2.new(1, 0, 0, 30), BackgroundColor3 = Color3.fromRGB(25, 25, 25), Parent = SectionFrame})
+        Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, F)
+        Custom:Create("TextLabel", {Text = Cfg.Title, Size = UDim2.new(1, -110, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, TextColor3 = Color3.new(1,1,1), TextXAlignment = "Left", Parent = F})
+        local I = Custom:Create("TextBox", {Text = Cfg.Default or "", Size = UDim2.new(0, 100, 0, 20), Position = UDim2.new(1, -105, 0.5, -10), BackgroundColor3 = Color3.new(0,0,0), TextColor3 = Color3.new(1,1,1), Parent = F})
+        I.FocusLost:Connect(function() Cfg.Callback(I.Text) end)
+      end
+
+      function Items:AddDropdown(Cfg)
+        local F = Custom:Create("Frame", {Size = UDim2.new(1, 0, 0, 30), BackgroundColor3 = Color3.fromRGB(25, 25, 25), Parent = SectionFrame})
+        Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, F)
+        Custom:Create("TextLabel", {Text = Cfg.Title, Size = UDim2.new(1, -110, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, TextColor3 = Color3.new(1,1,1), TextXAlignment = "Left", Parent = F})
+        local B = Custom:Create("TextButton", {Text = "Select...", Size = UDim2.new(0, 100, 0, 20), Position = UDim2.new(1, -105, 0.5, -10), BackgroundColor3 = Color3.new(0,0,0), TextColor3 = Color3.new(1,1,1), Parent = F})
+        B.Activated:Connect(function()
+          local Screen = Custom:Create("ScreenGui", {}, Player.PlayerGui)
+          local List = Custom:Create("ScrollingFrame", {Size = UDim2.new(0, 180, 0, 200), Position = UDim2.new(0, B.AbsolutePosition.X, 0, B.AbsolutePosition.Y + 25), BackgroundColor3 = Color3.fromRGB(30,30,30)}, Screen)
+          Custom:Create("UIListLayout", {}, List)
+          for _, v in pairs(Cfg.Options) do
+            local b = Custom:Create("TextButton", {Text = v, Size = UDim2.new(1, 0, 0, 25), BackgroundTransparency = 0.8, TextColor3 = Color3.new(1,1,1)}, List)
+            b.Activated:Connect(function() B.Text = v Cfg.Callback({v}) Screen:Destroy() end)
+          end
         end)
-    end
+      end
 
-    function Items:AddInput(Cfg)
-        local IFrame = Custom:Create("Frame", {Size = UDim2.new(1, 0, 0, 35), BackgroundColor3 = Color3.fromRGB(25, 25, 25)}, Content)
-        Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, IFrame)
-        local Box = Custom:Create("TextBox", {Text = Cfg.Default or "", PlaceholderText = Cfg.Title, Size = UDim2.new(0, 120, 0, 25), Position = UDim2.new(1, -125, 0.5, -12), BackgroundColor3 = Color3.fromRGB(15, 15, 15), TextColor3 = Color3.new(1,1,1), Font = "Gotham", TextSize = 12}, IFrame)
-        Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, Box)
-        Custom:Create("TextLabel", {Text = Cfg.Title, Size = UDim2.new(1, -140, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, TextColor3 = Color3.new(1,1,1), TextXAlignment = "Left", Font = "Gotham", TextSize = 12}, IFrame)
-        Box.FocusLost:Connect(function() Cfg.Callback(Box.Text) end)
-    end
-
-    function Items:AddDropdown(Cfg)
-        local DFrame = Custom:Create("Frame", {Size = UDim2.new(1, 0, 0, 35), BackgroundColor3 = Color3.fromRGB(25, 25, 25)}, Content)
-        Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, DFrame)
-        local Sel = Custom:Create("TextButton", {Text = "Pilih Pet...", Size = UDim2.new(0, 120, 0, 25), Position = UDim2.new(1, -125, 0.5, -12), BackgroundColor3 = Color3.fromRGB(15, 15, 15), TextColor3 = Color3.new(1,1,1), Font = "Gotham", TextSize = 11}, DFrame)
-        Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, Sel)
-        Custom:Create("TextLabel", {Text = Cfg.Title, Size = UDim2.new(1, -140, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, TextColor3 = Color3.new(1,1,1), TextXAlignment = "Left", Font = "Gotham", TextSize = 12}, DFrame)
+      function Items:AddLiveTable(Cfg)
+        local Columns = Cfg.Columns or {"Pet", "Age", "Harga"}
+        local TableFrame = Custom:Create("Frame", { Size = UDim2.new(1, 0, 0, 300), BackgroundColor3 = Color3.fromRGB(20, 20, 20), Parent = SectionFrame })
+        Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, TableFrame)
+        local Search = Custom:Create("TextBox", { PlaceholderText = " 🔍 Search Pet...", Size = UDim2.new(1, -10, 0, 25), Position = UDim2.new(0, 5, 0, 5), BackgroundColor3 = Color3.new(0,0,0), TextColor3 = Color3.new(1,1,1), Parent = TableFrame })
         
-        Sel.Activated:Connect(function()
-            local ScreenD = Custom:Create("ScreenGui", {}, Player.PlayerGui)
-            local Bg = Custom:Create("TextButton", {Size = UDim2.new(1,0,1,0), BackgroundTransparency = 0.5, BackgroundColor3 = Color3.new(0,0,0), Text = ""}, ScreenD)
-            local List = Custom:Create("ScrollingFrame", {Size = UDim2.new(0, 200, 0, 300), Position = UDim2.new(0.5, -100, 0.5, -150), BackgroundColor3 = Color3.fromRGB(30,30,30), CanvasSize = UDim2.new(0,0,0,0)}, ScreenD)
-            local LLayout = Custom:Create("UIListLayout", {}, List)
-            LLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() List.CanvasSize = UDim2.new(0,0,0, LLayout.AbsoluteContentSize.Y) end)
-            for _, v in pairs(Cfg.Options) do
-                local b = Custom:Create("TextButton", {Text = v, Size = UDim2.new(1,0,0,30), BackgroundTransparency = 1, TextColor3 = Color3.new(1,1,1), Font = "Gotham", TextSize = 12}, List)
-                b.Activated:Connect(function() Cfg.Callback({v}); Sel.Text = v; ScreenD:Destroy() end)
-            end
-            Bg.Activated:Connect(function() ScreenD:Destroy() end)
-        end)
-    end
-
-    function Items:AddLiveTable(Cfg)
-        local TblFrame = Custom:Create("Frame", {Size = UDim2.new(1, 0, 0, 300), BackgroundColor3 = Color3.fromRGB(20, 20, 20)}, Content)
-        Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, TblFrame)
-        local Search = Custom:Create("TextBox", {Size = UDim2.new(1, -10, 0, 25), Position = UDim2.new(0, 5, 0, 5), PlaceholderText = " 🔍 Cari Pet...", BackgroundColor3 = Color3.new(0,0,0), TextColor3 = Color3.new(1,1,1), Font = "Gotham", TextSize = 12}, TblFrame)
-        local Header = Custom:Create("Frame", {Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, 0, 35), BackgroundColor3 = Color3.fromRGB(40, 40, 40)}, TblFrame)
-        Custom:Create("TextLabel", {Text = "Pet", Size = UDim2.new(0.5, 0, 1, 0), BackgroundTransparency = 1, TextColor3 = Color3.new(0.7,0.7,0.7), Font = "GothamBold", TextSize = 11}, Header)
-        Custom:Create("TextLabel", {Text = "Age", Size = UDim2.new(0.15, 0, 1, 0), Position = UDim2.new(0.5, 0, 0, 0), BackgroundTransparency = 1, TextColor3 = Color3.new(0.7,0.7,0.7), Font = "GothamBold", TextSize = 11}, Header)
-        Custom:Create("TextLabel", {Text = "Harga", Size = UDim2.new(0.15, 0, 1, 0), Position = UDim2.new(0.65, 0, 0, 0), BackgroundTransparency = 1, TextColor3 = Color3.new(0.7,0.7,0.7), Font = "GothamBold", TextSize = 11}, Header)
-        
-        local Scroll = Custom:Create("ScrollingFrame", {Size = UDim2.new(1, 0, 1, -60), Position = UDim2.new(0, 0, 0, 55), BackgroundTransparency = 1, CanvasSize = UDim2.new(0,0,0,0), ScrollBarThickness = 2}, TblFrame)
-        local TLay = Custom:Create("UIListLayout", {}, Scroll)
-        
-        local tbl = {RawData = {}}
-        function tbl:SetData(newData)
-            self.RawData = newData
-            self:UpdateDisplay(Search.Text)
+        local ColFrame = Custom:Create("Frame", {Size = UDim2.new(1, 0, 0, 25), Position = UDim2.new(0, 0, 0, 35), BackgroundColor3 = Color3.fromRGB(40,40,40)}, TableFrame)
+        local SortCol, SortDir = nil, "asc"
+        for i, col in ipairs(Columns) do
+            local b = Custom:Create("TextButton", {Text = col, Size = UDim2.new(0.26, 0, 1, 0), Position = UDim2.new(0.26*(i-1), 0, 0, 0), BackgroundTransparency = 1, TextColor3 = Color3.new(0.8,0.8,0.8), Font = "GothamBold", TextSize = 11, Name = col}, ColFrame)
+            b.Activated:Connect(function() SortDir = (SortCol == col and SortDir == "asc") and "desc" or "asc" SortCol = col tbl:RefreshTable() end)
         end
-        
-        function tbl:UpdateDisplay(query)
-            for _, v in pairs(Scroll:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end
-            local q = query:lower()
-            for i, row in ipairs(self.RawData) do
-                if row.Pet:lower():find(q) then
-                    local r = Custom:Create("Frame", {Size = UDim2.new(1, 0, 0, 28), BackgroundTransparency = (i%2==0 and 0.95 or 1), BackgroundColor3 = Color3.new(0,0,0)}, Scroll)
-                    Custom:Create("TextLabel", {Text = "  " .. row.Pet, Size = UDim2.new(0.5, 0, 1, 0), BackgroundTransparency = 1, TextColor3 = Color3.new(1,1,1), TextXAlignment = "Left", Font = "Gotham", TextSize = 11}, r)
-                    Custom:Create("TextLabel", {Text = row.Age, Size = UDim2.new(0.15, 0, 1, 0), Position = UDim2.new(0.5, 0, 0, 0), BackgroundTransparency = 1, TextColor3 = Color3.new(1,1,1), Font = "Gotham", TextSize = 11}, r)
-                    Custom:Create("TextLabel", {Text = row.Harga, Size = UDim2.new(0.15, 0, 1, 0), Position = UDim2.new(0.65, 0, 0, 0), BackgroundTransparency = 1, TextColor3 = Color3.new(1,1,1), Font = "Gotham", TextSize = 11}, r)
-                    local b = Custom:Create("TextButton", {Text = "🛒", Size = UDim2.new(0.15, -6, 0, 20), Position = UDim2.new(0.82, 0, 0.5, -10), BackgroundColor3 = Custom.ColorRGB, TextColor3 = Color3.new(1,1,1), Font = "GothamBold", TextSize = 10}, r)
-                    Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, b)
-                    b.Activated:Connect(function() Cfg.Actions[1].Callback(i, row) end)
-                end
-            end
-            Scroll.CanvasSize = UDim2.new(0, 0, 0, TLay.AbsoluteContentSize.Y)
+        Custom:Create("TextLabel", {Text = "Actions", Size = UDim2.new(0.22, 0, 1, 0), Position = UDim2.new(0.78, 0, 0, 0), BackgroundTransparency = 1, TextColor3 = Color3.new(0.8,0.8,0.8), Font = "GothamBold", TextSize = 11}, ColFrame)
+
+        local Scroll = Custom:Create("ScrollingFrame", { Size = UDim2.new(1, 0, 1, -65), Position = UDim2.new(0, 0, 0, 60), BackgroundTransparency = 1, ScrollBarThickness = 4, Parent = TableFrame })
+        local UIList = Custom:Create("UIListLayout", {}, Scroll)
+        local currentData = {}
+        local tbl = {}
+        function tbl:SetData(newData) currentData = newData self:RefreshTable() end
+        function tbl:RefreshTable()
+          for _, v in pairs(Scroll:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end
+          local q = Search.Text:lower()
+          local disp = {}
+          for _, r in ipairs(currentData) do if r.Pet:lower():find(q) then table.insert(disp, r) end end
+          if SortCol then
+            for _, btn in pairs(ColFrame:GetChildren()) do if btn:IsA("TextButton") then btn.Text = btn.Name .. (btn.Name == SortCol and (SortDir == "asc" and " ^" or " v") or "") end end
+            table.sort(disp, function(a,b)
+                local v1, v2 = a[SortCol] or "", b[SortCol] or ""
+                local n1, n2 = tonumber(v1), tonumber(v2)
+                if n1 and n2 then return SortDir == "asc" and n1 < n2 or n1 > n2
+                else return SortDir == "asc" and tostring(v1):lower() < tostring(v2):lower() or tostring(v1):lower() > tostring(v2):lower() end
+            end)
+          end
+          for i, row in ipairs(disp) do
+            local R = Custom:Create("Frame", { Size = UDim2.new(1, 0, 0, 26), BackgroundColor3 = (i%2==0 and Color3.fromRGB(25,25,25) or Color3.fromRGB(30,30,30)), Parent = Scroll })
+            Custom:Create("TextLabel", { Text = " "..row.Pet, Size = UDim2.new(0.26, 0, 1, 0), BackgroundTransparency = 1, TextColor3 = Color3.new(1,1,1), TextXAlignment = "Left", Font = "Gotham", TextSize = 10}, R)
+            Custom:Create("TextLabel", { Text = row.Age or "", Size = UDim2.new(0.26, 0, 1, 0), Position = UDim2.new(0.26, 0, 0, 0), BackgroundTransparency = 1, TextColor3 = Color3.new(0.8,0.8,0.8), Font = "Gotham", TextSize = 10}, R)
+            Custom:Create("TextLabel", { Text = row.Harga or "", Size = UDim2.new(0.26, 0, 1, 0), Position = UDim2.new(0.52, 0, 0, 0), BackgroundTransparency = 1, TextColor3 = Color3.new(1,1,0.5), Font = "Gotham", TextSize = 10}, R)
+            local B = Custom:Create("TextButton", { Text = "🛒", Size = UDim2.new(0, 30, 0, 18), Position = UDim2.new(1, -35, 0.5, -9), BackgroundColor3 = Custom.ColorRGB, Parent = R })
+            B.Activated:Connect(function() Cfg.Actions[1].Callback(i, row) end)
+          end
+          Scroll.CanvasSize = UDim2.new(0, 0, 0, UIList.AbsoluteContentSize.Y)
         end
-        Search:GetPropertyChangedSignal("Text"):Connect(function() tbl:UpdateDisplay(Search.Text) end)
+        Search:GetPropertyChangedSignal("Text"):Connect(function() tbl:RefreshTable() end)
         return tbl
+      end
+      return Items
     end
-    return Items
+    return Sections
   end
   return Tabs
 end
