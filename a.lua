@@ -2198,329 +2198,400 @@ function Speed_Library:CreateWindow(Config)
         return Funcs_Dropdown
       end
 
+      function Item:AddLiveTable(Config)
+        local Title = Config[1] or Config.Title or "Live Table"
+        local Columns = Config[2] or Config.Columns or {"Name", "Value"}
+        local Data = Config[3] or Config.Data or {}
+        local UpdateCallback = Config[4] or Config.UpdateCallback or function() end
+        local Actions = Config[5] or Config.Actions or {} -- {Name, Icon, Callback}
+
+        local TableFuncs = {}
+        local TableData = {}
+        local SortColumn = nil
+        local SortDirection = "asc"
+        local CurrentPage = 1
+        local RowsPerPage = 5
+        local RowIndexMap = {} -- Map untuk tracking real index
+
+        -- Create Table Container
+        local TableContainer = Custom:Create("Frame", {
+          BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+          BackgroundTransparency = 0.935,
+          BorderColor3 = Color3.fromRGB(0, 0, 0),
+          BorderSizePixel = 0,
+          LayoutOrder = ItemCount,
+          Size = UDim2.new(1, 0, 0, 250),
+          Name = "LiveTable"
+        }, SectionAdd)
+
+        Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, TableContainer)
+
+        -- Table Header
+        local TableHeader = Custom:Create("Frame", {
+          BackgroundColor3 = Custom.ColorRGB,
+          BackgroundTransparency = 0.1,
+          BorderColor3 = Color3.fromRGB(0, 0, 0),
+          BorderSizePixel = 0,
+          Size = UDim2.new(1, 0, 0, 30),
+          Name = "TableHeader"
+        }, TableContainer)
+
+        Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, TableHeader)
+
+        local TableTitle = Custom:Create("TextLabel", {
+          Font = Enum.Font.GothamBold,
+          Text = Title,
+          TextColor3 = Color3.fromRGB(255, 255, 255),
+          TextSize = 13,
+          TextXAlignment = Enum.TextXAlignment.Left,
+          BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+          BackgroundTransparency = 0.999,
+          BorderColor3 = Color3.fromRGB(0, 0, 0),
+          BorderSizePixel = 0,
+          Position = UDim2.new(0, 10, 0, 0),
+          Size = UDim2.new(1, -20, 1, 0),
+          Name = "TableTitle"
+        }, TableHeader)
+
+        -- Table Columns Container
+        local ColumnsFrame = Custom:Create("Frame", {
+          BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+          BackgroundTransparency = 0.92,
+          BorderColor3 = Color3.fromRGB(0, 0, 0),
+          BorderSizePixel = 0,
+          Position = UDim2.new(0, 0, 0, 30),
+          Size = UDim2.new(1, 0, 0, 25),
+          Name = "ColumnsFrame"
+        }, TableContainer)
+
+        local ColumnWidth = 1 / (#Columns + (#Actions > 0 and 1 or 0))
+
+        for i, Column in ipairs(Columns) do
+          local ColumnHeader = Custom:Create("TextButton", {
+            Font = Enum.Font.GothamBold,
+            Text = Column .. (SortColumn == Column and (SortDirection == "asc" and " ↑" or " ↓") or ""),
+            TextColor3 = Color3.fromRGB(200, 200, 200),
+            TextSize = 11,
+            TextXAlignment = Enum.TextXAlignment.Center,
+            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+            BackgroundTransparency = 0.999,
+            BorderColor3 = Color3.fromRGB(100, 100, 100),
+            BorderSizePixel = 1,
+            Position = UDim2.new(ColumnWidth * (i - 1), 0, 0, 0),
+            Size = UDim2.new(ColumnWidth, 0, 1, 0),
+            Name = "ColumnHeader"
+          }, ColumnsFrame)
+
+          ColumnHeader.Activated:Connect(function()
+            if SortColumn == Column then
+              SortDirection = SortDirection == "asc" and "desc" or "asc"
+            else
+              SortColumn = Column
+              SortDirection = "asc"
+            end
+            TableFuncs:RefreshTable()
+          end)
+        end
+
+        -- Actions Column Header
+        if #Actions > 0 then
+          Custom:Create("TextLabel", {
+            Font = Enum.Font.GothamBold,
+            Text = "⚙️ Actions",
+            TextColor3 = Color3.fromRGB(200, 200, 200),
+            TextSize = 11,
+            TextXAlignment = Enum.TextXAlignment.Center,
+            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+            BackgroundTransparency = 0.999,
+            BorderColor3 = Color3.fromRGB(100, 100, 100),
+            BorderSizePixel = 1,
+            Position = UDim2.new(ColumnWidth * #Columns, 0, 0, 0),
+            Size = UDim2.new(ColumnWidth, 0, 1, 0),
+            Name = "ActionsHeader"
+          }, ColumnsFrame)
+        end
+
+        -- Table Rows Container
+        local RowsContainer = Custom:Create("ScrollingFrame", {
+          CanvasSize = UDim2.new(0, 0, 0, 0),
+          ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100),
+          ScrollBarThickness = 6,
+          Active = true,
+          BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+          BackgroundTransparency = 0.999,
+          BorderColor3 = Color3.fromRGB(0, 0, 0),
+          BorderSizePixel = 0,
+          Position = UDim2.new(0, 0, 0, 55),
+          Size = UDim2.new(1, 0, 0, 150),
+          Name = "RowsContainer"
+        }, TableContainer)
+
+        local UIListLayout = Custom:Create("UIListLayout", {
+          Padding = UDim.new(0, 1),
+          SortOrder = Enum.SortOrder.LayoutOrder
+        }, RowsContainer)
+
+        -- Pagination Controls
+        local PaginationFrame = Custom:Create("Frame", {
+          BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+          BackgroundTransparency = 0.95,
+          BorderColor3 = Color3.fromRGB(0, 0, 0),
+          BorderSizePixel = 0,
+          Position = UDim2.new(0, 0, 1, -30),
+          Size = UDim2.new(1, 0, 0, 30),
+          Name = "PaginationFrame",
+          AnchorPoint = Vector2.new(0, 1)
+        }, TableContainer)
+
+        local PrevBtn = Custom:Create("TextButton", {
+          Font = Enum.Font.GothamBold,
+          Text = "← Prev",
+          TextColor3 = Color3.fromRGB(255, 255, 255),
+          TextSize = 11,
+          BackgroundColor3 = Custom.ColorRGB,
+          BackgroundTransparency = 0.2,
+          BorderColor3 = Custom.ColorRGB,
+          BorderSizePixel = 1,
+          Position = UDim2.new(0, 5, 0.5, -7),
+          Size = UDim2.new(0, 50, 0, 14),
+          AnchorPoint = Vector2.new(0, 0.5),
+          Name = "PrevBtn"
+        }, PaginationFrame)
+
+        Custom:Create("UICorner", {CornerRadius = UDim.new(0, 3)}, PrevBtn)
+
+        local NextBtn = Custom:Create("TextButton", {
+          Font = Enum.Font.GothamBold,
+          Text = "Next →",
+          TextColor3 = Color3.fromRGB(255, 255, 255),
+          TextSize = 11,
+          BackgroundColor3 = Custom.ColorRGB,
+          BackgroundTransparency = 0.2,
+          BorderColor3 = Custom.ColorRGB,
+          BorderSizePixel = 1,
+          Position = UDim2.new(1, -55, 0.5, -7),
+          Size = UDim2.new(0, 50, 0, 14),
+          AnchorPoint = Vector2.new(1, 0.5),
+          Name = "NextBtn"
+        }, PaginationFrame)
+
+        Custom:Create("UICorner", {CornerRadius = UDim.new(0, 3)}, NextBtn)
+
+        local PageInfo = Custom:Create("TextLabel", {
+          Font = Enum.Font.GothamBold,
+          Text = "Page 1 / 1",
+          TextColor3 = Color3.fromRGB(150, 150, 150),
+          TextSize = 10,
+          BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+          BackgroundTransparency = 0.999,
+          BorderSizePixel = 0,
+          Position = UDim2.new(0.5, 0, 0.5, 0),
+          Size = UDim2.new(0, 80, 1, 0),
+          AnchorPoint = Vector2.new(0.5, 0.5),
+          Name = "PageInfo"
+        }, PaginationFrame)
+
+        -- Pagination Functions
+        local function UpdatePagination()
+          local TotalPages = math.ceil(#TableData / RowsPerPage) or 1
+          PageInfo.Text = "Page " .. CurrentPage .. " / " .. TotalPages
+
+          PrevBtn.BackgroundTransparency = CurrentPage <= 1 and 0.6 or 0.2
+          NextBtn.BackgroundTransparency = CurrentPage >= TotalPages and 0.6 or 0.2
+          PrevBtn.Interactable = CurrentPage > 1
+          NextBtn.Interactable = CurrentPage < TotalPages
+        end
+
+        PrevBtn.Activated:Connect(function()
+          if CurrentPage > 1 then
+            CurrentPage -= 1
+            TableFuncs:RefreshTable()
+          end
+        end)
+
+        NextBtn.Activated:Connect(function()
+          local TotalPages = math.ceil(#TableData / RowsPerPage) or 1
+          if CurrentPage < TotalPages then
+            CurrentPage += 1
+            TableFuncs:RefreshTable()
+          end
+        end)
+
+        -- Core Table Functions
+        function TableFuncs:AddRow(RowData)
+          table.insert(TableData, RowData)
+          UpdateCallback()
+          self:RefreshTable()
+        end
+
+        function TableFuncs:RemoveRow(Index)
+          table.remove(TableData, Index)
+          UpdateCallback()
+          self:RefreshTable()
+        end
+
+        function TableFuncs:UpdateRow(Index, RowData)
+          if TableData[Index] then
+            TableData[Index] = RowData
+            UpdateCallback()
+            self:RefreshTable()
+          end
+        end
+
+        function TableFuncs:ClearTable()
+          TableData = {}
+          UpdateCallback()
+          self:RefreshTable()
+        end
+
+        function TableFuncs:SetData(NewData)
+          TableData = NewData or {}
+          CurrentPage = 1
+          UpdateCallback()
+          self:RefreshTable()
+        end
+
+        function TableFuncs:RefreshTable()
+          -- Clear existing rows
+          for _, child in pairs(RowsContainer:GetChildren()) do
+            if child.Name == "Row" then
+              child:Destroy()
+            end
+          end
+
+          -- Sort data if needed
+          local DisplayData = TableData
+          if SortColumn then
+            table.sort(DisplayData, function(a, b)
+              local aVal = a[SortColumn] or ""
+              local bVal = b[SortColumn] or ""
+
+              if typeof(aVal) == "string" then
+                aVal = string.lower(aVal)
+                bVal = string.lower(bVal)
+              end
+
+              if SortDirection == "asc" then
+                return aVal < bVal
+              else
+                return aVal > bVal
+              end
+            end)
+          end
+
+          -- Calculate pagination
+          local StartIndex = (CurrentPage - 1) * RowsPerPage + 1
+          local EndIndex = math.min(StartIndex + RowsPerPage - 1, #DisplayData)
+
+          -- Render rows
+          for i = StartIndex, EndIndex do
+            if DisplayData[i] then
+              local RowData = DisplayData[i]
+              local RealIndex = nil
+              
+              -- Find real index in TableData
+              for idx, data in ipairs(TableData) do
+                if data == RowData then
+                  RealIndex = idx
+                  break
+                end
+              end
+
+              local Row = Custom:Create("Frame", {
+                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                BackgroundTransparency = 0.93,
+                BorderColor3 = Color3.fromRGB(100, 100, 100),
+                BorderSizePixel = 1,
+                LayoutOrder = i - StartIndex,
+                Size = UDim2.new(1, 0, 0, 24),
+                Name = "Row"
+              }, RowsContainer)
+
+              Custom:Create("UICorner", {CornerRadius = UDim.new(0, 2)}, Row)
+
+              for colIndex, Column in ipairs(Columns) do
+                local CellValue = tostring(RowData[Column] or "")
+                local Cell = Custom:Create("TextLabel", {
+                  Font = Enum.Font.Gotham,
+                  Text = CellValue,
+                  TextColor3 = Color3.fromRGB(200, 200, 200),
+                  TextSize = 11,
+                  TextXAlignment = Enum.TextXAlignment.Center,
+                  BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                  BackgroundTransparency = 0.999,
+                  BorderSizePixel = 0,
+                  Position = UDim2.new(ColumnWidth * (colIndex - 1), 0, 0, 0),
+                  Size = UDim2.new(ColumnWidth, 0, 1, 0),
+                  Name = "Cell"
+                }, Row)
+              end
+
+              -- Add Action Buttons
+              if #Actions > 0 then
+                local ActionsCell = Custom:Create("Frame", {
+                  BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                  BackgroundTransparency = 0.999,
+                  BorderSizePixel = 0,
+                  Position = UDim2.new(ColumnWidth * #Columns, 0, 0, 0),
+                  Size = UDim2.new(ColumnWidth, 0, 1, 0),
+                  Name = "ActionsCell"
+                }, Row)
+
+                local ActionWidth = 1 / #Actions
+
+                for actionIdx, Action in ipairs(Actions) do
+                  local ActionName = Action[1] or Action.Name or "Action"
+                  local ActionIcon = Action[2] or Action.Icon or "🔵"
+                  local ActionCallback = Action[3] or Action.Callback or function() end
+
+                  local ActionBtn = Custom:Create("TextButton", {
+                    Font = Enum.Font.GothamBold,
+                    Text = ActionIcon,
+                    TextColor3 = Color3.fromRGB(255, 255, 255),
+                    TextSize = 9,
+                    BackgroundColor3 = Custom.ColorRGB,
+                    BackgroundTransparency = 0.3,
+                    BorderColor3 = Custom.ColorRGB,
+                    BorderSizePixel = 1,
+                    Position = UDim2.new(ActionWidth * (actionIdx - 1), 2, 0.5, -7),
+                    Size = UDim2.new(ActionWidth, -4, 0, 14),
+                    AnchorPoint = Vector2.new(0, 0.5),
+                    Name = "ActionBtn"
+                  }, ActionsCell)
+
+                  Custom:Create("UICorner", {CornerRadius = UDim.new(0, 2)}, ActionBtn)
+
+                  ActionBtn.Activated:Connect(function()
+                    CircleClick(ActionBtn, Player:GetMouse().X, Player:GetMouse().Y)
+                    ActionCallback(RealIndex, RowData)
+                  end)
+                end
+              end
+            end
+          end
+
+          -- Update canvas size
+          local RowCount = math.min(#DisplayData - StartIndex + 1, RowsPerPage)
+          RowsContainer.CanvasSize = UDim2.new(0, 0, 0, (RowCount * 24) + (RowCount * 1))
+
+          UpdatePagination()
+        end
+
+        -- Initialize table with data
+        if Data and #Data > 0 then
+          TableFuncs:SetData(Data)
+        end
+
+        ItemCount += 1
+        return TableFuncs
+      end
+
       ItemCount += 1
       return Item
     end
 
     CountTab += 1
     return Sections
-  end
-
-  -- /// Live Table Function
-  function Tabs:CreateLiveTable(Config)
-    local Title = Config[1] or Config.Title or "Live Table"
-    local Columns = Config[2] or Config.Columns or {"Name", "Value"}
-    local Data = Config[3] or Config.Data or {}
-    local UpdateCallback = Config[4] or Config.UpdateCallback or function() end
-
-    local TableFuncs = {}
-    local TableData = {}
-    local SortColumn = nil
-    local SortDirection = "asc"
-    local CurrentPage = 1
-    local RowsPerPage = 5
-
-    -- Create Table Container
-    local TableContainer = Custom:Create("Frame", {
-      BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-      BackgroundTransparency = 0.935,
-      BorderColor3 = Color3.fromRGB(0, 0, 0),
-      BorderSizePixel = 0,
-      LayoutOrder = ItemCount,
-      Size = UDim2.new(1, 0, 0, 250),
-      Name = "LiveTable"
-    }, SectionAdd)
-
-    Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, TableContainer)
-
-    -- Table Header
-    local TableHeader = Custom:Create("Frame", {
-      BackgroundColor3 = Custom.ColorRGB,
-      BackgroundTransparency = 0.1,
-      BorderColor3 = Color3.fromRGB(0, 0, 0),
-      BorderSizePixel = 0,
-      Size = UDim2.new(1, 0, 0, 30),
-      Name = "TableHeader"
-    }, TableContainer)
-
-    Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, TableHeader)
-
-    local TableTitle = Custom:Create("TextLabel", {
-      Font = Enum.Font.GothamBold,
-      Text = Title,
-      TextColor3 = Color3.fromRGB(255, 255, 255),
-      TextSize = 13,
-      TextXAlignment = Enum.TextXAlignment.Left,
-      BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-      BackgroundTransparency = 0.999,
-      BorderColor3 = Color3.fromRGB(0, 0, 0),
-      BorderSizePixel = 0,
-      Position = UDim2.new(0, 10, 0, 0),
-      Size = UDim2.new(1, -20, 1, 0),
-      Name = "TableTitle"
-    }, TableHeader)
-
-    -- Table Columns Container
-    local ColumnsFrame = Custom:Create("Frame", {
-      BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-      BackgroundTransparency = 0.92,
-      BorderColor3 = Color3.fromRGB(0, 0, 0),
-      BorderSizePixel = 0,
-      Position = UDim2.new(0, 0, 0, 30),
-      Size = UDim2.new(1, 0, 0, 25),
-      Name = "ColumnsFrame"
-    }, TableContainer)
-
-    local ColumnWidth = 1 / #Columns
-
-    for i, Column in ipairs(Columns) do
-      local ColumnHeader = Custom:Create("TextButton", {
-        Font = Enum.Font.GothamBold,
-        Text = Column .. (SortColumn == Column and (SortDirection == "asc" and " ↑" or " ↓") or ""),
-        TextColor3 = Color3.fromRGB(200, 200, 200),
-        TextSize = 11,
-        TextXAlignment = Enum.TextXAlignment.Center,
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 0.999,
-        BorderColor3 = Color3.fromRGB(100, 100, 100),
-        BorderSizePixel = 1,
-        Position = UDim2.new(ColumnWidth * (i - 1), 0, 0, 0),
-        Size = UDim2.new(ColumnWidth, 0, 1, 0),
-        Name = "ColumnHeader"
-      }, ColumnsFrame)
-
-      ColumnHeader.Activated:Connect(function()
-        if SortColumn == Column then
-          SortDirection = SortDirection == "asc" and "desc" or "asc"
-        else
-          SortColumn = Column
-          SortDirection = "asc"
-        end
-        TableFuncs:RefreshTable()
-      end)
-    end
-
-    -- Table Rows Container
-    local RowsContainer = Custom:Create("ScrollingFrame", {
-      CanvasSize = UDim2.new(0, 0, 0, 0),
-      ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100),
-      ScrollBarThickness = 6,
-      Active = true,
-      BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-      BackgroundTransparency = 0.999,
-      BorderColor3 = Color3.fromRGB(0, 0, 0),
-      BorderSizePixel = 0,
-      Position = UDim2.new(0, 0, 0, 55),
-      Size = UDim2.new(1, 0, 0, 150),
-      Name = "RowsContainer"
-    }, TableContainer)
-
-    local UIListLayout = Custom:Create("UIListLayout", {
-      Padding = UDim.new(0, 1),
-      SortOrder = Enum.SortOrder.LayoutOrder
-    }, RowsContainer)
-
-    -- Pagination Controls
-    local PaginationFrame = Custom:Create("Frame", {
-      BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-      BackgroundTransparency = 0.95,
-      BorderColor3 = Color3.fromRGB(0, 0, 0),
-      BorderSizePixel = 0,
-      Position = UDim2.new(0, 0, 1, -30),
-      Size = UDim2.new(1, 0, 0, 30),
-      Name = "PaginationFrame",
-      AnchorPoint = Vector2.new(0, 1)
-    }, TableContainer)
-
-    local PrevBtn = Custom:Create("TextButton", {
-      Font = Enum.Font.GothamBold,
-      Text = "← Prev",
-      TextColor3 = Color3.fromRGB(255, 255, 255),
-      TextSize = 11,
-      BackgroundColor3 = Custom.ColorRGB,
-      BackgroundTransparency = 0.2,
-      BorderColor3 = Custom.ColorRGB,
-      BorderSizePixel = 1,
-      Position = UDim2.new(0, 5, 0.5, -7),
-      Size = UDim2.new(0, 50, 0, 14),
-      AnchorPoint = Vector2.new(0, 0.5),
-      Name = "PrevBtn"
-    }, PaginationFrame)
-
-    Custom:Create("UICorner", {CornerRadius = UDim.new(0, 3)}, PrevBtn)
-
-    local NextBtn = Custom:Create("TextButton", {
-      Font = Enum.Font.GothamBold,
-      Text = "Next →",
-      TextColor3 = Color3.fromRGB(255, 255, 255),
-      TextSize = 11,
-      BackgroundColor3 = Custom.ColorRGB,
-      BackgroundTransparency = 0.2,
-      BorderColor3 = Custom.ColorRGB,
-      BorderSizePixel = 1,
-      Position = UDim2.new(1, -55, 0.5, -7),
-      Size = UDim2.new(0, 50, 0, 14),
-      AnchorPoint = Vector2.new(1, 0.5),
-      Name = "NextBtn"
-    }, PaginationFrame)
-
-    Custom:Create("UICorner", {CornerRadius = UDim.new(0, 3)}, NextBtn)
-
-    local PageInfo = Custom:Create("TextLabel", {
-      Font = Enum.Font.GothamBold,
-      Text = "Page 1 / 1",
-      TextColor3 = Color3.fromRGB(150, 150, 150),
-      TextSize = 10,
-      BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-      BackgroundTransparency = 0.999,
-      BorderSizePixel = 0,
-      Position = UDim2.new(0.5, 0, 0.5, 0),
-      Size = UDim2.new(0, 80, 1, 0),
-      AnchorPoint = Vector2.new(0.5, 0.5),
-      Name = "PageInfo"
-    }, PaginationFrame)
-
-    -- Pagination Functions
-    local function UpdatePagination()
-      local TotalPages = math.ceil(#TableData / RowsPerPage) or 1
-      PageInfo.Text = "Page " .. CurrentPage .. " / " .. TotalPages
-
-      PrevBtn.BackgroundTransparency = CurrentPage <= 1 and 0.6 or 0.2
-      NextBtn.BackgroundTransparency = CurrentPage >= TotalPages and 0.6 or 0.2
-      PrevBtn.Interactable = CurrentPage > 1
-      NextBtn.Interactable = CurrentPage < TotalPages
-    end
-
-    PrevBtn.Activated:Connect(function()
-      if CurrentPage > 1 then
-        CurrentPage -= 1
-        TableFuncs:RefreshTable()
-      end
-    end)
-
-    NextBtn.Activated:Connect(function()
-      local TotalPages = math.ceil(#TableData / RowsPerPage) or 1
-      if CurrentPage < TotalPages then
-        CurrentPage += 1
-        TableFuncs:RefreshTable()
-      end
-    end)
-
-    -- Core Table Functions
-    function TableFuncs:AddRow(RowData)
-      table.insert(TableData, RowData)
-      UpdateCallback()
-      self:RefreshTable()
-    end
-
-    function TableFuncs:RemoveRow(Index)
-      table.remove(TableData, Index)
-      UpdateCallback()
-      self:RefreshTable()
-    end
-
-    function TableFuncs:UpdateRow(Index, RowData)
-      if TableData[Index] then
-        TableData[Index] = RowData
-        UpdateCallback()
-        self:RefreshTable()
-      end
-    end
-
-    function TableFuncs:ClearTable()
-      TableData = {}
-      UpdateCallback()
-      self:RefreshTable()
-    end
-
-    function TableFuncs:SetData(NewData)
-      TableData = NewData or {}
-      CurrentPage = 1
-      UpdateCallback()
-      self:RefreshTable()
-    end
-
-    function TableFuncs:RefreshTable()
-      -- Clear existing rows
-      for _, child in pairs(RowsContainer:GetChildren()) do
-        if child.Name == "Row" then
-          child:Destroy()
-        end
-      end
-
-      -- Sort data if needed
-      local DisplayData = TableData
-      if SortColumn then
-        table.sort(DisplayData, function(a, b)
-          local aVal = a[SortColumn] or ""
-          local bVal = b[SortColumn] or ""
-
-          if typeof(aVal) == "string" then
-            aVal = string.lower(aVal)
-            bVal = string.lower(bVal)
-          end
-
-          if SortDirection == "asc" then
-            return aVal < bVal
-          else
-            return aVal > bVal
-          end
-        end)
-      end
-
-      -- Calculate pagination
-      local StartIndex = (CurrentPage - 1) * RowsPerPage + 1
-      local EndIndex = math.min(StartIndex + RowsPerPage - 1, #DisplayData)
-
-      -- Render rows
-      for i = StartIndex, EndIndex do
-        if DisplayData[i] then
-          local RowData = DisplayData[i]
-          local Row = Custom:Create("Frame", {
-            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-            BackgroundTransparency = 0.93,
-            BorderColor3 = Color3.fromRGB(100, 100, 100),
-            BorderSizePixel = 1,
-            LayoutOrder = i - StartIndex,
-            Size = UDim2.new(1, 0, 0, 24),
-            Name = "Row"
-          }, RowsContainer)
-
-          Custom:Create("UICorner", {CornerRadius = UDim.new(0, 2)}, Row)
-
-          for colIndex, Column in ipairs(Columns) do
-            local CellValue = tostring(RowData[Column] or "")
-            local Cell = Custom:Create("TextLabel", {
-              Font = Enum.Font.Gotham,
-              Text = CellValue,
-              TextColor3 = Color3.fromRGB(200, 200, 200),
-              TextSize = 11,
-              TextXAlignment = Enum.TextXAlignment.Center,
-              BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-              BackgroundTransparency = 0.999,
-              BorderSizePixel = 0,
-              Position = UDim2.new(ColumnWidth * (colIndex - 1), 0, 0, 0),
-              Size = UDim2.new(ColumnWidth, 0, 1, 0),
-              Name = "Cell"
-            }, Row)
-          end
-        end
-      end
-
-      -- Update canvas size
-      local RowCount = math.min(#DisplayData - StartIndex + 1, RowsPerPage)
-      RowsContainer.CanvasSize = UDim2.new(0, 0, 0, (RowCount * 24) + (RowCount * 1))
-
-      UpdatePagination()
-    end
-
-    -- Initialize table with data
-    if Data and #Data > 0 then
-      TableFuncs:SetData(Data)
-    end
-
-    ItemCount += 1
-    return TableFuncs
   end
 
   return Tabs
