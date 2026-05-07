@@ -2278,36 +2278,38 @@ function Speed_Library:CreateWindow(Config)
         local tbl = {RawData = {}}
 
         function tbl:UpdateDisplay()
-          pcall(function()
+    -- BUNGKUS SEMUANYA DALAM PCALL
+    pcall(function()
+        -- 1. Bersihkan baris lama
         for _, v in pairs(Scroll:GetChildren()) do 
             if v:IsA("Frame") then 
                 v:Destroy() 
             end 
         end
-    end)
-          
-          local q = Search.Text:lower()
-          local filtered = {}
-          for _, r in ipairs(self.RawData) do
-            if tostring(r.Pet):lower():find(q) then table.insert(filtered, r) end
-          end
 
-          -- Logic Sorting
-          table.sort(filtered, function(a, b)
+        local q = Search.Text:lower()
+        local filtered = {}
+        for _, r in ipairs(self.RawData) do
+            if tostring(r.Pet):lower():find(q) then table.insert(filtered, r) end
+        end
+
+        -- 2. Logic Sorting
+        table.sort(filtered, function(a, b)
             local v1, v2 = a[SortCol] or 0, b[SortCol] or 0
             if tonumber(v1) and tonumber(v2) then
-              return SortDir == "asc" and tonumber(v1) < tonumber(v2) or tonumber(v1) > tonumber(v2)
+                return SortDir == "asc" and tonumber(v1) < tonumber(v2) or tonumber(v1) > tonumber(v2)
             else
-              return (SortDir == "asc" and tostring(v1):lower() < tostring(v2):lower()) or (SortDir == "desc" and tostring(v1):lower() > tostring(v2):lower())
+                return (SortDir == "asc" and tostring(v1):lower() < tostring(v2):lower()) or (SortDir == "desc" and tostring(v1):lower() > tostring(v2):lower())
             end
-          end)
+        end)
 
-          for i, row in ipairs(filtered) do
+        -- 3. Buat baris baru (Harus di dalam pcall)
+        for i, row in ipairs(filtered) do
             local RowFrame = Custom:Create("Frame", {
-              Size = UDim2.new(1, 0, 0, 25),
-              BackgroundColor3 = (i % 2 == 0) and Color3.fromRGB(25, 25, 25) or Color3.fromRGB(30, 30, 30),
-              BorderSizePixel = 0,
-              Parent = Scroll
+                Size = UDim2.new(1, 0, 0, 25),
+                BackgroundColor3 = (i % 2 == 0) and Color3.fromRGB(25, 25, 25) or Color3.fromRGB(30, 30, 30),
+                BorderSizePixel = 0,
+                Parent = Scroll
             })
             
             Custom:Create("TextLabel", {Text = " "..tostring(row.Pet), Size = UDim2.new(0.4, 0, 1, 0), BackgroundTransparency = 1, TextColor3 = Color3.new(1,1,1), TextXAlignment = "Left", Font = "Gotham", TextSize = 11, Parent = RowFrame})
@@ -2315,19 +2317,24 @@ function Speed_Library:CreateWindow(Config)
             Custom:Create("TextLabel", {Text = tostring(row.Harga), Size = UDim2.new(0.2, 0, 1, 0), Position = UDim2.new(0.6, 0, 0, 0), BackgroundTransparency = 1, TextColor3 = Color3.fromRGB(255, 255, 100), Font = "Gotham", TextSize = 11, Parent = RowFrame})
             
             local BuyBtn = Custom:Create("TextButton", {
-              Text = "🛒",
-              Size = UDim2.new(0, 30, 0, 18),
-              Position = UDim2.new(1, -35, 0.5, -9),
-              BackgroundColor3 = Custom.ColorRGB,
-              TextColor3 = Color3.new(1,1,1),
-              Font = "GothamBold",
-              Parent = RowFrame
-            })
+                Text = "🛒",
+                Size = UDim2.new(0, 30, 0, 18),
+                Position = UDim2.new(1, -35, 0.5, -9),
+                BackgroundColor3 = Custom.ColorRGB,
+                TextColor3 = Color3.new(1,1,1),
+                Font = "GothamBold",
+                Parent = RowFrame
+              })
             Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, BuyBtn)
             BuyBtn.Activated:Connect(function() Cfg.Actions[1].Callback(i, row) end)
-          end
-          Scroll.CanvasSize = UDim2.new(0, 0, 0, UIList.AbsoluteContentSize.Y)
         end
+        
+        -- Update Canvas Size
+        if UIList then
+            Scroll.CanvasSize = UDim2.new(0, 0, 0, UIList.AbsoluteContentSize.Y)
+        end
+    end)
+end
 
         function tbl:SetData(newData)
           self.RawData = newData
