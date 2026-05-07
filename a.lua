@@ -1087,6 +1087,329 @@ function Speed_Library:CreateWindow(Config)
       UpdateSizeScroll()
 
       local Item, ItemCount = {}, 0
+
+function Item:AddLiveTable(Config)
+
+    local Title =
+        Config.Title or "TABLE"
+
+    local Columns =
+        Config.Columns or {}
+
+    local RowButtons =
+        Config.RowButtons or false
+
+    local TableFuncs = {}
+
+    local TableFrame =
+        Custom:Create("Frame",{
+
+        BackgroundColor3 =
+            Color3.fromRGB(255,255,255),
+
+        BackgroundTransparency = 0.935,
+
+        BorderSizePixel = 0,
+
+        LayoutOrder = ItemCount,
+
+        Size = UDim2.new(1,0,0,220),
+
+        Name = "LiveTable"
+
+    },SectionAdd)
+
+    Custom:Create("UICorner",{
+        CornerRadius = UDim.new(0,4)
+    },TableFrame)
+
+    local TitleLabel =
+        Custom:Create("TextLabel",{
+
+        Font = Enum.Font.GothamBold,
+
+        Text = Title,
+
+        TextSize = 13,
+
+        TextColor3 =
+            Color3.new(1,1,1),
+
+        BackgroundTransparency = 1,
+
+        Position = UDim2.new(0,10,0,5),
+
+        Size = UDim2.new(1,-20,0,20),
+
+        TextXAlignment =
+            Enum.TextXAlignment.Left
+
+    },TableFrame)
+
+    local Header =
+        Custom:Create("Frame",{
+
+        BackgroundColor3 =
+            Color3.fromRGB(40,40,40),
+
+        BorderSizePixel = 0,
+
+        Position = UDim2.new(0,10,0,30),
+
+        Size = UDim2.new(1,-20,0,28)
+
+    },TableFrame)
+
+    Custom:Create("UICorner",{},Header)
+
+    local HeaderLayout =
+        Instance.new("UIListLayout")
+
+    HeaderLayout.FillDirection =
+        Enum.FillDirection.Horizontal
+
+    HeaderLayout.SortOrder =
+        Enum.SortOrder.LayoutOrder
+
+    HeaderLayout.Parent = Header
+
+    for _,col in pairs(Columns) do
+
+        local txt =
+            Custom:Create("TextLabel",{
+
+            Font = Enum.Font.GothamBold,
+
+            Text = tostring(col),
+
+            TextSize = 11,
+
+            TextColor3 =
+                Color3.new(1,1,1),
+
+            BackgroundTransparency = 1,
+
+            Size = UDim2.new(
+                1/#Columns,
+                0,
+                1,
+                0
+            )
+
+        },Header)
+
+    end
+
+    local Scroll =
+        Custom:Create("ScrollingFrame",{
+
+        BackgroundTransparency = 1,
+
+        BorderSizePixel = 0,
+
+        Position = UDim2.new(0,10,0,63),
+
+        Size = UDim2.new(1,-20,1,-73),
+
+        CanvasSize = UDim2.new(0,0,0,0),
+
+        ScrollBarThickness = 3,
+
+        ScrollBarImageColor3 =
+            Color3.fromRGB(255,0,0)
+
+    },TableFrame)
+
+    local Layout =
+        Instance.new("UIListLayout")
+
+    Layout.Padding = UDim.new(0,4)
+
+    Layout.SortOrder =
+        Enum.SortOrder.LayoutOrder
+
+    Layout.Parent = Scroll
+
+    function TableFuncs:Clear()
+
+        for _,v in pairs(
+            Scroll:GetChildren()
+        ) do
+
+            if v:IsA("Frame") then
+                v:Destroy()
+            end
+
+        end
+
+        Scroll.CanvasSize =
+            UDim2.new(0,0,0,0)
+
+    end
+
+    function TableFuncs:AddRow(Data)
+
+        local Row =
+            Custom:Create("Frame",{
+
+            BackgroundColor3 =
+                Color3.fromRGB(30,30,30),
+
+            BorderSizePixel = 0,
+
+            Size = UDim2.new(1,0,0,38)
+
+        },Scroll)
+
+        Custom:Create(
+            "UICorner",
+            {},
+            Row
+        )
+
+        local RowLayout =
+            Instance.new("UIListLayout")
+
+        RowLayout.FillDirection =
+            Enum.FillDirection.Horizontal
+
+        RowLayout.Parent = Row
+
+        local btns = Data.buttons
+        Data.buttons = nil
+
+        for _,txt in pairs(Data) do
+
+            local lbl =
+                Custom:Create(
+                "TextLabel",{
+
+                Font =
+                    Enum.Font.Gotham,
+
+                Text =
+                    tostring(txt),
+
+                TextSize = 11,
+
+                TextColor3 =
+                    Color3.new(1,1,1),
+
+                BackgroundTransparency = 1,
+
+                Size = UDim2.new(
+                    1/#Columns,
+                    0,
+                    1,
+                    0
+                )
+
+            },Row)
+
+        end
+
+        if RowButtons
+        and btns then
+
+            for _,b in pairs(btns) do
+
+                local Btn =
+                    Custom:Create(
+                    "TextButton",{
+
+                    Font =
+                        Enum.Font.GothamBold,
+
+                    Text =
+                        b.text
+                        or "BTN",
+
+                    TextSize = 11,
+
+                    TextColor3 =
+                        Color3.new(1,1,1),
+
+                    BackgroundColor3 =
+                        Color3.fromRGB(
+                            255,
+                            0,
+                            0
+                        ),
+
+                    Size =
+                        UDim2.new(
+                        0,
+                        55,
+                        0,
+                        24
+                    ),
+
+                    Position =
+                        UDim2.new(
+                        1,
+                        -60,
+                        .5,
+                        -12
+                    ),
+
+                    ZIndex = 5
+
+                },Row)
+
+                Custom:Create(
+                    "UICorner",
+                    {},
+                    Btn
+                )
+
+                Btn.Activated:Connect(
+                    function()
+
+                    CircleClick(
+                        Btn,
+                        Player:GetMouse().X,
+                        Player:GetMouse().Y
+                    )
+
+                    if b.callback then
+                        b.callback()
+                    end
+
+                end)
+
+            end
+
+        end
+
+        task.wait()
+
+        Scroll.CanvasSize =
+            UDim2.new(
+            0,
+            0,
+            0,
+            Layout.AbsoluteContentSize.Y
+            + 5
+        )
+
+    end
+
+    function TableFuncs:SetRows(rows)
+
+        TableFuncs:Clear()
+
+        for _,row in pairs(rows) do
+            TableFuncs:AddRow(row)
+        end
+
+    end
+
+    ItemCount += 1
+
+    return TableFuncs
+
+end
+			
       function Item:AddParagraph(Config)
         local Title = Config[1] or Config.Title or ""
         local Content = Config[2] or Config.Content or ""
