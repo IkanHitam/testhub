@@ -2204,6 +2204,7 @@ function Speed_Library:CreateWindow(Config)
         local Data = Config[3] or Config.Data or {}
         local UpdateCallback = Config[4] or Config.UpdateCallback or function() end
         local Actions = Config[5] or Config.Actions or {} -- {Name, Icon, Callback}
+        local RowButtons = Config[6] or Config.RowButtons or false -- Enable per-row buttons
 
         local TableFuncs = {}
         local TableData = {}
@@ -2264,7 +2265,7 @@ function Speed_Library:CreateWindow(Config)
           Name = "ColumnsFrame"
         }, TableContainer)
 
-        local ColumnWidth = 1 / (#Columns + (#Actions > 0 and 1 or 0))
+        local ColumnWidth = 1 / (#Columns + (#Actions > 0 and 1 or 0) + (RowButtons and 1 or 0))
 
         for i, Column in ipairs(Columns) do
           local ColumnHeader = Custom:Create("TextButton", {
@@ -2308,6 +2309,24 @@ function Speed_Library:CreateWindow(Config)
             Position = UDim2.new(ColumnWidth * #Columns, 0, 0, 0),
             Size = UDim2.new(ColumnWidth, 0, 1, 0),
             Name = "ActionsHeader"
+          }, ColumnsFrame)
+        end
+
+        -- Row Buttons Column Header
+        if RowButtons then
+          Custom:Create("TextLabel", {
+            Font = Enum.Font.GothamBold,
+            Text = "🔘 Row Buttons",
+            TextColor3 = Color3.fromRGB(200, 200, 200),
+            TextSize = 11,
+            TextXAlignment = Enum.TextXAlignment.Center,
+            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+            BackgroundTransparency = 0.999,
+            BorderColor3 = Color3.fromRGB(100, 100, 100),
+            BorderSizePixel = 1,
+            Position = UDim2.new(ColumnWidth * (#Columns + (#Actions > 0 and 1 or 0)), 0, 0, 0),
+            Size = UDim2.new(ColumnWidth, 0, 1, 0),
+            Name = "RowButtonsHeader"
           }, ColumnsFrame)
         end
 
@@ -2430,9 +2449,9 @@ function Speed_Library:CreateWindow(Config)
           self:RefreshTable()
         end
 
-        function TableFuncs:UpdateRow(Index, RowData)
+        function TableFuncs:UpdateRowButtons(Index, Buttons)
           if TableData[Index] then
-            TableData[Index] = RowData
+            TableData[Index].buttons = Buttons
             UpdateCallback()
             self:RefreshTable()
           end
@@ -2564,6 +2583,49 @@ function Speed_Library:CreateWindow(Config)
                   ActionBtn.Activated:Connect(function()
                     CircleClick(ActionBtn, Player:GetMouse().X, Player:GetMouse().Y)
                     ActionCallback(RealIndex, RowData)
+                  end)
+                end
+              end
+
+              -- Add Row Buttons (per-row custom buttons)
+              if RowButtons and RowData.buttons then
+                local RowButtonsCell = Custom:Create("Frame", {
+                  BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                  BackgroundTransparency = 0.999,
+                  BorderSizePixel = 0,
+                  Position = UDim2.new(ColumnWidth * (#Columns + (#Actions > 0 and 1 or 0)), 0, 0, 0),
+                  Size = UDim2.new(ColumnWidth, 0, 1, 0),
+                  Name = "RowButtonsCell"
+                }, Row)
+
+                local RowButtonWidth = 1 / #RowData.buttons
+
+                for btnIdx, ButtonConfig in ipairs(RowData.buttons) do
+                  local BtnText = ButtonConfig[1] or ButtonConfig.text or "Btn"
+                  local BtnIcon = ButtonConfig[2] or ButtonConfig.icon or "🔘"
+                  local BtnCallback = ButtonConfig[3] or ButtonConfig.callback or function() end
+                  local BtnColor = ButtonConfig[4] or ButtonConfig.color or Custom.ColorRGB
+
+                  local RowBtn = Custom:Create("TextButton", {
+                    Font = Enum.Font.GothamBold,
+                    Text = BtnIcon,
+                    TextColor3 = Color3.fromRGB(255, 255, 255),
+                    TextSize = 8,
+                    BackgroundColor3 = BtnColor,
+                    BackgroundTransparency = 0.3,
+                    BorderColor3 = BtnColor,
+                    BorderSizePixel = 1,
+                    Position = UDim2.new(RowButtonWidth * (btnIdx - 1), 1, 0.5, -6),
+                    Size = UDim2.new(RowButtonWidth, -2, 0, 12),
+                    AnchorPoint = Vector2.new(0, 0.5),
+                    Name = "RowBtn"
+                  }, RowButtonsCell)
+
+                  Custom:Create("UICorner", {CornerRadius = UDim.new(0, 2)}, RowBtn)
+
+                  RowBtn.Activated:Connect(function()
+                    CircleClick(RowBtn, Player:GetMouse().X, Player:GetMouse().Y)
+                    BtnCallback(RealIndex, RowData)
                   end)
                 end
               end
