@@ -389,7 +389,7 @@ function Speed_Library:CreateWindow(Config)
       local Item, ItemCount = {}, 0
 
       -- ═══════════════════════════════════════════════════════════
-      -- BLOK LIVE TABLE (ANTI-ERROR SIMBOL & TOMBOL PRESISI)
+      -- BLOK LIVE TABLE + FITUR SEARCH BAR
       -- ═══════════════════════════════════════════════════════════
       function Item:AddLiveTable(Config)
         local Title = Config[1] or Config.Title or "Live Table"
@@ -402,6 +402,7 @@ function Speed_Library:CreateWindow(Config)
         local TableData = {}
         local SortColumn = nil
         local SortDirection = "asc"
+        local SearchQuery = "" -- Variabel untuk menyimpan teks pencarian
 
         local TableContainer = Custom:Create("Frame", {
           BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 0.935,
@@ -409,11 +410,37 @@ function Speed_Library:CreateWindow(Config)
         }, SectionAdd)
         Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, TableContainer)
 
+        -- 1. Table Header (Judul) -> Y: 0
         local TableHeader = Custom:Create("Frame", { BackgroundColor3 = Custom.ColorRGB, BackgroundTransparency = 0.1, Size = UDim2.new(1, 0, 0, 30), Name = "TableHeader" }, TableContainer)
         Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, TableHeader)
         local TableTitle = Custom:Create("TextLabel", { Font = Enum.Font.GothamBold, Text = Title, TextColor3 = Color3.fromRGB(255, 255, 255), TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, BackgroundTransparency = 0.999, Position = UDim2.new(0, 10, 0, 0), Size = UDim2.new(1, -20, 1, 0) }, TableHeader)
 
-        local ColumnsFrame = Custom:Create("Frame", { BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0.92, Position = UDim2.new(0, 0, 0, 30), Size = UDim2.new(1, 0, 0, 25) }, TableContainer)
+        -- 2. Search Bar -> Y: 35
+        local SearchBar = Custom:Create("TextBox", {
+            Font = Enum.Font.GothamBold,
+            PlaceholderText = " 🔍 Cari nama pet di sini...",
+            PlaceholderColor3 = Color3.fromRGB(150, 150, 150),
+            Text = "",
+            TextColor3 = Color3.fromRGB(255, 255, 255),
+            TextSize = 12,
+            BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+            BackgroundTransparency = 0.5,
+            BorderColor3 = Custom.ColorRGB,
+            BorderSizePixel = 1,
+            Position = UDim2.new(0, 10, 0, 35),
+            Size = UDim2.new(1, -20, 0, 22),
+            Name = "SearchBar"
+        }, TableContainer)
+        Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, SearchBar)
+        
+        -- Deteksi saat kita mengetik di kolom pencarian
+        SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
+            SearchQuery = string.lower(SearchBar.Text)
+            TableFuncs:RefreshTable()
+        end)
+
+        -- 3. Columns Header -> Y: 62
+        local ColumnsFrame = Custom:Create("Frame", { BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0.92, Position = UDim2.new(0, 0, 0, 62), Size = UDim2.new(1, 0, 0, 25) }, TableContainer)
         local ColumnWidth = 1 / (#Columns + (#Actions > 0 and 1 or 0) + (RowButtons and 1 or 0))
 
         for i, Column in ipairs(Columns) do
@@ -436,9 +463,10 @@ function Speed_Library:CreateWindow(Config)
           Custom:Create("TextLabel", { Font = Enum.Font.GothamBold, Text = "⚙️ Actions", TextColor3 = Color3.fromRGB(200, 200, 200), TextSize = 11, BackgroundTransparency = 0.999, BorderColor3 = Color3.fromRGB(100, 100, 100), BorderSizePixel = 1, Position = UDim2.new(ColumnWidth * #Columns, 0, 0, 0), Size = UDim2.new(ColumnWidth, 0, 1, 0) }, ColumnsFrame)
         end
 
+        -- 4. Rows Container -> Y: 88, Sisanya untuk list (-88)
         local RowsContainer = Custom:Create("ScrollingFrame", {
           CanvasSize = UDim2.new(0, 0, 0, 0), ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100), ScrollBarThickness = 6, Active = true,
-          BackgroundTransparency = 0.999, Position = UDim2.new(0, 0, 0, 55), Size = UDim2.new(1, 0, 1, -55)
+          BackgroundTransparency = 0.999, Position = UDim2.new(0, 0, 0, 88), Size = UDim2.new(1, 0, 1, -88)
         }, TableContainer)
         Custom:Create("UIListLayout", { Padding = UDim.new(0, 1), SortOrder = Enum.SortOrder.LayoutOrder }, RowsContainer)
 
@@ -450,10 +478,21 @@ function Speed_Library:CreateWindow(Config)
         function TableFuncs:RefreshTable()
           for _, child in pairs(RowsContainer:GetChildren()) do if child.Name == "Row" then child:Destroy() end end
 
-          local DisplayData = {unpack(TableData)}
+          -- SISTEM FILTER PENCARIAN (SEARCH)
+          local DisplayData = {}
+          if SearchQuery and SearchQuery ~= "" then
+            for _, row in ipairs(TableData) do
+                -- Mencari berdasarkan teks pada Kolom ke-1 (yaitu "Pet")
+                local searchStr = string.lower(tostring(row[Columns[1]] or ""))
+                if string.find(searchStr, SearchQuery, 1, true) then 
+                    table.insert(DisplayData, row)
+                end
+            end
+          else
+            DisplayData = {unpack(TableData)}
+          end
           
           if SortColumn then
-            -- MENGGUNAKAN SIMBOL KEYBOARD STANDAR (^ v) AGAR ANTI-ERROR DI ANDROID
             for _, btn in ipairs(ColumnsFrame:GetChildren()) do
               if btn:IsA("TextButton") then
                 local colName = btn.Name
@@ -499,7 +538,6 @@ function Speed_Library:CreateWindow(Config)
             if #Actions > 0 then
               local ActionsCell = Custom:Create("Frame", { BackgroundTransparency = 0.999, Position = UDim2.new(ColumnWidth * #Columns, 0, 0, 0), Size = UDim2.new(ColumnWidth, 0, 1, 0) }, Row)
               
-              -- MEMBUAT TOMBOL OTOMATIS KE TENGAH
               Custom:Create("UIListLayout", {
                 FillDirection = Enum.FillDirection.Horizontal,
                 HorizontalAlignment = Enum.HorizontalAlignment.Center,
@@ -512,31 +550,13 @@ function Speed_Library:CreateWindow(Config)
                 local ActionBtn = Custom:Create("TextButton", {
                   Font = Enum.Font.GothamBold, Text = Action.Icon or "🛒", TextColor3 = Color3.fromRGB(255, 255, 255), TextSize = 11,
                   BackgroundColor3 = Custom.ColorRGB, BackgroundTransparency = 0.1, 
-                  Size = UDim2.new(0, 26, 0, 18), -- UKURAN KOTAK TETAP (PRESISI)
+                  Size = UDim2.new(0, 26, 0, 18), 
                   LayoutOrder = actionIdx
                 }, ActionsCell)
                 Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, ActionBtn)
                 ActionBtn.Activated:Connect(function() CircleClick(ActionBtn, Player:GetMouse().X, Player:GetMouse().Y); Action.Callback(i, RowData) end)
               end
             end
-
-            -- Fitur RowButtons (Untuk berjaga-jaga jika kamu butuh)
-            if RowButtons and RowData.buttons then
-                local RowButtonsCell = Custom:Create("Frame", { BackgroundTransparency = 0.999, Position = UDim2.new(ColumnWidth * (#Columns + (#Actions > 0 and 1 or 0)), 0, 0, 0), Size = UDim2.new(ColumnWidth, 0, 1, 0) }, Row)
-                Custom:Create("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center, VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, RowButtonsCell)
-                
-                for btnIdx, ButtonConfig in ipairs(RowData.buttons) do
-                  local RowBtn = Custom:Create("TextButton", {
-                    Font = Enum.Font.GothamBold, Text = ButtonConfig.icon or "🔘", TextColor3 = Color3.fromRGB(255, 255, 255), TextSize = 11,
-                    BackgroundColor3 = ButtonConfig.color or Custom.ColorRGB, BackgroundTransparency = 0.1, 
-                    Size = UDim2.new(0, 26, 0, 18), 
-                    LayoutOrder = btnIdx
-                  }, RowButtonsCell)
-                  Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, RowBtn)
-                  RowBtn.Activated:Connect(function() CircleClick(RowBtn, Player:GetMouse().X, Player:GetMouse().Y); ButtonConfig.callback(i, RowData) end)
-                end
-            end
-
           end
 
           RowsContainer.CanvasSize = UDim2.new(0, 0, 0, (#DisplayData * 25))
