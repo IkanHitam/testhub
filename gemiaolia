@@ -2192,8 +2192,13 @@ function Speed_Library:CreateWindow(Config)
         end
       
         Funcs_Dropdown:Refresh(Funcs_Dropdown.Options, Funcs_Dropdown.Value)
+      
+        ItemCount += 1
+        CountDropdown += 1
+        return Funcs_Dropdown
+      end
 
-function Item:AddLiveTable(Cfg)
+      function Item:AddLiveTable(Cfg)
         local Title = Cfg.Title or "Live Table"
         local Columns = Cfg.Columns or {"Pet", "Age", "Harga"}
         local Actions = Cfg.Actions or {}
@@ -2364,12 +2369,6 @@ function Item:AddLiveTable(Cfg)
         return TableFuncs
       end
 
-      
-        ItemCount += 1
-        CountDropdown += 1
-        return Funcs_Dropdown
-      end
-
       ItemCount += 1
       return Item
     end
@@ -2380,7 +2379,5 @@ function Item:AddLiveTable(Cfg)
 
   return Tabs
 end
-
-
 
 return Speed_Library
