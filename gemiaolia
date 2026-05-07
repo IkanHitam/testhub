@@ -36,7 +36,7 @@ Custom:EnabledAFK()
 local function OpenClose()
   local ScreenGui = Custom:Create("ScreenGui", {
     ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-  }, RunService:IsStudio() and Player.PlayerGui or (gethui() or cloneref(game:GetService("CoreGui")) or game:GetService("CoreGui")))
+  }, Player:WaitForChild("PlayerGui")) -- Mengganti CoreGui menjadi PlayerGui agar tidak error capability
 
   local Close_ImageButton = Custom:Create("ImageButton", {
     BackgroundColor3 = Color3.fromRGB(0, 0, 0),
@@ -2278,7 +2278,13 @@ function Speed_Library:CreateWindow(Config)
         local tbl = {RawData = {}}
 
         function tbl:UpdateDisplay()
-          for _, v in pairs(Scroll:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end
+          pcall(function()
+        for _, v in pairs(Scroll:GetChildren()) do 
+            if v:IsA("Frame") then 
+                v:Destroy() 
+            end 
+        end
+    end)
           
           local q = Search.Text:lower()
           local filtered = {}
