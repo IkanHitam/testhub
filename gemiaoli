@@ -197,7 +197,7 @@ function Speed_Library:SetNotification(Config)
 
   local TextLabel2 = Custom:Create("TextLabel", {
     Font = Enum.Font.GothamBold, TextColor3 = Color3.fromRGB(255, 255, 255), TextSize = 13, Text = Content, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
-    BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 0.999, BorderColor3 = Color3.fromRGB(0, 0, 0), BorderSizePixel = 0, Position = UDim2.new(0, 10, 0, 27), Size = UDim2.new(1, -20, 0, 13), Parent = NotificationFrameReal
+    BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 0.999, TextColor3 = Color3.fromRGB(150, 150, 150), BorderColor3 = Color3.fromRGB(0, 0, 0), BorderSizePixel = 0, Position = UDim2.new(0, 10, 0, 27), Size = UDim2.new(1, -20, 0, 13), Parent = NotificationFrameReal
   })
 
   TextLabel2.Size = UDim2.new(1, -20, 0, 13 + (13 * (TextLabel2.TextBounds.X // TextLabel2.AbsoluteSize.X)))
@@ -304,11 +304,8 @@ function Speed_Library:CreateWindow(Config)
   DropShadowHolder.Size = UDim2.new(0, 115 + TextLabel.TextBounds.X + 1 + TextLabel1.TextBounds.X, 0, 350)
 	MakeDraggable(Top, DropShadowHolder)
 
-  local MoreBlur = Custom:Create("Frame", { AnchorPoint = Vector2.new(1, 1), BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 1, ClipsDescendants = true, Position = UDim2.new(1, 8, 1, 8), Size = UDim2.new(1, 154, 1, 54), Visible = false, Name = "MoreBlur" }, Layers)
-  Custom:Create("UICorner", {}, MoreBlur)
-
   local Tabs = {}
-  local CountTab, CountDropdown = 0, 0
+  local CountTab = 0
   function Tabs:CreateTab(Config)
     local _Name = Config[1] or Config.Name or "" 
     local Icon = Config[2] or Config.Icon or ""
@@ -392,7 +389,7 @@ function Speed_Library:CreateWindow(Config)
       local Item, ItemCount = {}, 0
 
       -- ═══════════════════════════════════════════════════════════
-      -- BLOK LIVE TABLE YANG BARU (TanPA PREV/NEXT, INFINITE SCROLL)
+      -- BLOK LIVE TABLE (ANTI-ERROR SIMBOL & TOMBOL PRESISI)
       -- ═══════════════════════════════════════════════════════════
       function Item:AddLiveTable(Config)
         local Title = Config[1] or Config.Title or "Live Table"
@@ -406,7 +403,6 @@ function Speed_Library:CreateWindow(Config)
         local SortColumn = nil
         local SortDirection = "asc"
 
-        -- Wadah Utama Tabel (Ukurannya dibesarkan jadi 300px agar muat panjang)
         local TableContainer = Custom:Create("Frame", {
           BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 0.935,
           LayoutOrder = ItemCount, Size = UDim2.new(1, 0, 0, 300), Name = "LiveTable"
@@ -424,7 +420,8 @@ function Speed_Library:CreateWindow(Config)
           local ColumnHeader = Custom:Create("TextButton", {
             Font = Enum.Font.GothamBold, Text = Column, TextColor3 = Color3.fromRGB(200, 200, 200), TextSize = 11,
             BackgroundTransparency = 0.999, BorderColor3 = Color3.fromRGB(100, 100, 100), BorderSizePixel = 1,
-            Position = UDim2.new(ColumnWidth * (i - 1), 0, 0, 0), Size = UDim2.new(ColumnWidth, 0, 1, 0)
+            Position = UDim2.new(ColumnWidth * (i - 1), 0, 0, 0), Size = UDim2.new(ColumnWidth, 0, 1, 0),
+            Name = Column 
           }, ColumnsFrame)
 
           ColumnHeader.Activated:Connect(function()
@@ -439,7 +436,6 @@ function Speed_Library:CreateWindow(Config)
           Custom:Create("TextLabel", { Font = Enum.Font.GothamBold, Text = "⚙️ Actions", TextColor3 = Color3.fromRGB(200, 200, 200), TextSize = 11, BackgroundTransparency = 0.999, BorderColor3 = Color3.fromRGB(100, 100, 100), BorderSizePixel = 1, Position = UDim2.new(ColumnWidth * #Columns, 0, 0, 0), Size = UDim2.new(ColumnWidth, 0, 1, 0) }, ColumnsFrame)
         end
 
-        -- Scroll Container memanjang sampai mentok (1, -55)
         local RowsContainer = Custom:Create("ScrollingFrame", {
           CanvasSize = UDim2.new(0, 0, 0, 0), ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100), ScrollBarThickness = 6, Active = true,
           BackgroundTransparency = 0.999, Position = UDim2.new(0, 0, 0, 55), Size = UDim2.new(1, 0, 1, -55)
@@ -456,11 +452,16 @@ function Speed_Library:CreateWindow(Config)
 
           local DisplayData = {unpack(TableData)}
           
-          -- SISTEM URUTAN AKURAT (Support Huruf dan Angka)
           if SortColumn then
-            for i, btn in ipairs(ColumnsFrame:GetChildren()) do
+            -- MENGGUNAKAN SIMBOL KEYBOARD STANDAR (^ v) AGAR ANTI-ERROR DI ANDROID
+            for _, btn in ipairs(ColumnsFrame:GetChildren()) do
               if btn:IsA("TextButton") then
-                 if btn.Text:find(SortColumn) then btn.Text = SortColumn .. (SortDirection == "asc" and " ↑" or " ↓") else btn.Text = btn.Text:gsub(" [↑↓]", "") end
+                local colName = btn.Name
+                if colName == SortColumn then
+                  btn.Text = colName .. (SortDirection == "asc" and " ^" or " v")
+                else
+                  btn.Text = colName
+                end
               end
             end
             
@@ -497,17 +498,45 @@ function Speed_Library:CreateWindow(Config)
 
             if #Actions > 0 then
               local ActionsCell = Custom:Create("Frame", { BackgroundTransparency = 0.999, Position = UDim2.new(ColumnWidth * #Columns, 0, 0, 0), Size = UDim2.new(ColumnWidth, 0, 1, 0) }, Row)
-              local ActionWidth = 1 / #Actions
+              
+              -- MEMBUAT TOMBOL OTOMATIS KE TENGAH
+              Custom:Create("UIListLayout", {
+                FillDirection = Enum.FillDirection.Horizontal,
+                HorizontalAlignment = Enum.HorizontalAlignment.Center,
+                VerticalAlignment = Enum.VerticalAlignment.Center,
+                Padding = UDim.new(0, 4),
+                SortOrder = Enum.SortOrder.LayoutOrder
+              }, ActionsCell)
+
               for actionIdx, Action in ipairs(Actions) do
                 local ActionBtn = Custom:Create("TextButton", {
-                  Font = Enum.Font.GothamBold, Text = Action.Icon or "🔵", TextColor3 = Color3.fromRGB(255, 255, 255), TextSize = 10,
-                  BackgroundColor3 = Custom.ColorRGB, BackgroundTransparency = 0.3, Position = UDim2.new(ActionWidth * (actionIdx - 1), 2, 0.5, -7),
-                  Size = UDim2.new(ActionWidth, -4, 0, 14), AnchorPoint = Vector2.new(0, 0.5)
+                  Font = Enum.Font.GothamBold, Text = Action.Icon or "🛒", TextColor3 = Color3.fromRGB(255, 255, 255), TextSize = 11,
+                  BackgroundColor3 = Custom.ColorRGB, BackgroundTransparency = 0.1, 
+                  Size = UDim2.new(0, 26, 0, 18), -- UKURAN KOTAK TETAP (PRESISI)
+                  LayoutOrder = actionIdx
                 }, ActionsCell)
-                Custom:Create("UICorner", {CornerRadius = UDim.new(0, 2)}, ActionBtn)
+                Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, ActionBtn)
                 ActionBtn.Activated:Connect(function() CircleClick(ActionBtn, Player:GetMouse().X, Player:GetMouse().Y); Action.Callback(i, RowData) end)
               end
             end
+
+            -- Fitur RowButtons (Untuk berjaga-jaga jika kamu butuh)
+            if RowButtons and RowData.buttons then
+                local RowButtonsCell = Custom:Create("Frame", { BackgroundTransparency = 0.999, Position = UDim2.new(ColumnWidth * (#Columns + (#Actions > 0 and 1 or 0)), 0, 0, 0), Size = UDim2.new(ColumnWidth, 0, 1, 0) }, Row)
+                Custom:Create("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center, VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, RowButtonsCell)
+                
+                for btnIdx, ButtonConfig in ipairs(RowData.buttons) do
+                  local RowBtn = Custom:Create("TextButton", {
+                    Font = Enum.Font.GothamBold, Text = ButtonConfig.icon or "🔘", TextColor3 = Color3.fromRGB(255, 255, 255), TextSize = 11,
+                    BackgroundColor3 = ButtonConfig.color or Custom.ColorRGB, BackgroundTransparency = 0.1, 
+                    Size = UDim2.new(0, 26, 0, 18), 
+                    LayoutOrder = btnIdx
+                  }, RowButtonsCell)
+                  Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, RowBtn)
+                  RowBtn.Activated:Connect(function() CircleClick(RowBtn, Player:GetMouse().X, Player:GetMouse().Y); ButtonConfig.callback(i, RowData) end)
+                end
+            end
+
           end
 
           RowsContainer.CanvasSize = UDim2.new(0, 0, 0, (#DisplayData * 25))
