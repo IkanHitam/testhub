@@ -2197,15 +2197,14 @@ function Speed_Library:CreateWindow(Config)
         CountDropdown += 1
         return Funcs_Dropdown
       end
-
-      function Item:AddLiveTable(Cfg)
+function Item:AddLiveTable(Cfg)
         local Title = Cfg.Title or "Live Table"
         local Columns = Cfg.Columns or {"Pet", "Age", "Harga"}
         local Actions = Cfg.Actions or {}
         
         local TableFuncs = {}
         local TableData = {}
-        local SortCol = nil
+        local SortCol = "Harga" 
         local SortDir = "asc" 
 
         -- 1. Container Utama
@@ -2284,8 +2283,7 @@ function Speed_Library:CreateWindow(Config)
 
         -- 5. Fungsi Update & Set Data
         function TableFuncs:RefreshTable()
-          -- PCALL ANTI-ERROR CAPABILITY
-          pcall(function()
+          local success, err = pcall(function()
             -- Bersihkan baris lama
             for _, v in pairs(Scroll:GetChildren()) do 
               if v:IsA("Frame") and v.Name == "Row" then v:Destroy() end 
@@ -2297,7 +2295,7 @@ function Speed_Library:CreateWindow(Config)
               if tostring(r.Pet or r.Name or ""):lower():find(q) then table.insert(filtered, r) end
             end
 
-            -- Sorting Logic
+            -- LOGIC SORTING DIPERBAIKI (Anti Error)
             if SortCol then
               for _, btn in ipairs(ColFrame:GetChildren()) do
                 if btn:IsA("TextButton") then
@@ -2306,11 +2304,17 @@ function Speed_Library:CreateWindow(Config)
               end
               
               table.sort(filtered, function(a, b)
-                local v1, v2 = a[SortCol] or 0, b[SortCol] or 0
-                if tonumber(v1) and tonumber(v2) then
-                  return SortDir == "asc" and tonumber(v1) < tonumber(v2) or tonumber(v1) > tonumber(v2)
+                local v1 = a[SortCol] or 0
+                local v2 = b[SortCol] or 0
+                local n1 = tonumber(v1)
+                local n2 = tonumber(v2)
+                
+                if n1 and n2 then
+                  if SortDir == "asc" then return n1 < n2 else return n1 > n2 end
                 else
-                  return SortDir == "asc" and tostring(v1):lower() < tostring(v2):lower() or tostring(v1):lower() > tostring(v2):lower()
+                  local s1 = tostring(v1):lower()
+                  local s2 = tostring(v2):lower()
+                  if SortDir == "asc" then return s1 < s2 else return s1 > s2 end
                 end
               end)
             end
@@ -2356,6 +2360,11 @@ function Speed_Library:CreateWindow(Config)
             
             Scroll.CanvasSize = UDim2.new(0, 0, 0, UIList.AbsoluteContentSize.Y)
           end)
+
+          -- MUNCULKAN ERROR JIKA ADA MASALAH (Tidak disembunyikan lagi)
+          if not success then
+             warn("ERROR DI TABEL: " .. tostring(err))
+          end
         end
 
         function TableFuncs:SetData(newData)
