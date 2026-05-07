@@ -36,7 +36,7 @@ Custom:EnabledAFK()
 local function OpenClose()
   local ScreenGui = Custom:Create("ScreenGui", {
     ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-  }, Player:WaitForChild("PlayerGui")) -- Mengganti CoreGui menjadi PlayerGui agar tidak error capability
+  }, RunService:IsStudio() and Player.PlayerGui or (gethui() or cloneref(game:GetService("CoreGui")) or game:GetService("CoreGui")))
 
   local Close_ImageButton = Custom:Create("ImageButton", {
     BackgroundColor3 = Color3.fromRGB(0, 0, 0),
@@ -2192,168 +2192,183 @@ function Speed_Library:CreateWindow(Config)
         end
       
         Funcs_Dropdown:Refresh(Funcs_Dropdown.Options, Funcs_Dropdown.Value)
-      
-        ItemCount += 1
-        CountDropdown += 1
-        return Funcs_Dropdown
-      end
 
-      function Item:AddLiveTable(Config)
-        local Title = Config[1] or Config.Title or "Live Table"
-        local Columns = Config[2] or Config.Columns or {"Name", "Value"}
-        local Data = Config[3] or Config.Data or {}
-        local Actions = Config[5] or Config.Actions or {}
-        local RowButtons = Config[6] or Config.RowButtons or false
-
+function Item:AddLiveTable(Cfg)
+        local Title = Cfg.Title or "Live Table"
+        local Columns = Cfg.Columns or {"Pet", "Age", "Harga"}
+        local Actions = Cfg.Actions or {}
+        
         local TableFuncs = {}
         local TableData = {}
-        local SortColumn = nil
-        local SortDirection = "asc"
+        local SortCol = nil
+        local SortDir = "asc" 
 
+        -- 1. Container Utama
         local TableContainer = Custom:Create("Frame", {
-          BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 0.935,
-          LayoutOrder = ItemCount, Size = UDim2.new(1, 0, 0, 300), Name = "LiveTable"
-        }, SectionAdd)
+          Name = "LiveTableContainer",
+          Size = UDim2.new(1, 0, 0, 300),
+          BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+          Parent = SectionAdd
+        })
         Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, TableContainer)
 
-        local TableHeader = Custom:Create("Frame", { BackgroundColor3 = Custom.ColorRGB, BackgroundTransparency = 0.1, Size = UDim2.new(1, 0, 0, 30), Name = "TableHeader" }, TableContainer)
-        Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, TableHeader)
-        local TableTitle = Custom:Create("TextLabel", { Font = Enum.Font.GothamBold, Text = Title, TextColor3 = Color3.fromRGB(255, 255, 255), TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, BackgroundTransparency = 0.999, Position = UDim2.new(0, 10, 0, 0), Size = UDim2.new(1, -20, 1, 0) }, TableHeader)
+        -- 2. Search Bar
+        local Search = Custom:Create("TextBox", {
+          Name = "TableSearch",
+          PlaceholderText = " 🔍 Cari Nama Pet...",
+          Size = UDim2.new(1, -10, 0, 25),
+          Position = UDim2.new(0, 5, 0, 5),
+          BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+          TextColor3 = Color3.new(1, 1, 1),
+          Font = Enum.Font.Gotham,
+          TextSize = 12,
+          Parent = TableContainer
+        })
+        Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, Search)
 
-        local ColumnsFrame = Custom:Create("Frame", { BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0.92, Position = UDim2.new(0, 0, 0, 30), Size = UDim2.new(1, 0, 0, 25) }, TableContainer)
-        local ColumnWidth = 1 / (#Columns + (#Actions > 0 and 1 or 0) + (RowButtons and 1 or 0))
+        -- 3. Header Kolom
+        local ColFrame = Custom:Create("Frame", {
+          Name = "TableHeader",
+          Size = UDim2.new(1, 0, 0, 25),
+          Position = UDim2.new(0, 0, 0, 35),
+          BackgroundColor3 = Color3.fromRGB(35, 35, 35),
+          Parent = TableContainer
+        })
+        
+        local ColumnWidth = 1 / (#Columns + (#Actions > 0 and 1 or 0))
 
         for i, Column in ipairs(Columns) do
           local ColumnHeader = Custom:Create("TextButton", {
-            Font = Enum.Font.GothamBold, Text = Column, TextColor3 = Color3.fromRGB(200, 200, 200), TextSize = 11,
-            BackgroundTransparency = 0.999, BorderColor3 = Color3.fromRGB(100, 100, 100), BorderSizePixel = 1,
-            Position = UDim2.new(ColumnWidth * (i - 1), 0, 0, 0), Size = UDim2.new(ColumnWidth, 0, 1, 0),
-            Name = Column 
-          }, ColumnsFrame)
+            Text = Column,
+            Size = UDim2.new(ColumnWidth, 0, 1, 0),
+            Position = UDim2.new(ColumnWidth * (i - 1), 0, 0, 0),
+            BackgroundTransparency = 1,
+            TextColor3 = Color3.fromRGB(200, 200, 200),
+            Font = Enum.Font.GothamBold,
+            TextSize = 11,
+            Name = Column,
+            Parent = ColFrame
+          })
 
           ColumnHeader.Activated:Connect(function()
-            if SortColumn == Column then
-              SortDirection = SortDirection == "asc" and "desc" or "asc"
-            else SortColumn = Column; SortDirection = "asc" end
+            if SortCol == Column then
+              SortDir = (SortDir == "asc") and "desc" or "asc"
+            else
+              SortCol = Column
+              SortDir = "asc"
+            end
             TableFuncs:RefreshTable()
           end)
         end
 
         if #Actions > 0 then
-          Custom:Create("TextLabel", { Font = Enum.Font.GothamBold, Text = "⚙️ Actions", TextColor3 = Color3.fromRGB(200, 200, 200), TextSize = 11, BackgroundTransparency = 0.999, BorderColor3 = Color3.fromRGB(100, 100, 100), BorderSizePixel = 1, Position = UDim2.new(ColumnWidth * #Columns, 0, 0, 0), Size = UDim2.new(ColumnWidth, 0, 1, 0) }, ColumnsFrame)
+          Custom:Create("TextLabel", { Text = "⚙️ Actions", Size = UDim2.new(ColumnWidth, 0, 1, 0), Position = UDim2.new(ColumnWidth * #Columns, 0, 0, 0), BackgroundTransparency = 1, TextColor3 = Color3.fromRGB(200, 200, 200), Font = Enum.Font.GothamBold, TextSize = 11, Parent = ColFrame })
         end
 
-        local RowsContainer = Custom:Create("ScrollingFrame", {
-          CanvasSize = UDim2.new(0, 0, 0, 0), ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100), ScrollBarThickness = 6, Active = true,
-          BackgroundTransparency = 0.999, Position = UDim2.new(0, 0, 0, 55), Size = UDim2.new(1, 0, 1, -55)
-        }, TableContainer)
-        Custom:Create("UIListLayout", { Padding = UDim.new(0, 1), SortOrder = Enum.SortOrder.LayoutOrder }, RowsContainer)
+        -- 4. Area Scroll Data
+        local Scroll = Custom:Create("ScrollingFrame", {
+          Name = "TableScroll",
+          Size = UDim2.new(1, 0, 1, -65),
+          Position = UDim2.new(0, 0, 0, 60),
+          BackgroundTransparency = 1,
+          ScrollBarThickness = 2,
+          CanvasSize = UDim2.new(0, 0, 0, 0),
+          Parent = TableContainer
+        })
+        local UIList = Custom:Create("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder}, Scroll)
 
-        function TableFuncs:SetData(NewData)
-          TableData = NewData or {}
-          self:RefreshTable()
-        end
-
+        -- 5. Fungsi Update & Set Data
         function TableFuncs:RefreshTable()
-          for _, child in pairs(RowsContainer:GetChildren()) do if child.Name == "Row" then child:Destroy() end end
+          -- PCALL ANTI-ERROR CAPABILITY
+          pcall(function()
+            -- Bersihkan baris lama
+            for _, v in pairs(Scroll:GetChildren()) do 
+              if v:IsA("Frame") and v.Name == "Row" then v:Destroy() end 
+            end
+            
+            local q = Search.Text:lower()
+            local filtered = {}
+            for _, r in ipairs(TableData) do
+              if tostring(r.Pet or r.Name or ""):lower():find(q) then table.insert(filtered, r) end
+            end
 
-          local DisplayData = {unpack(TableData)}
-          
-          if SortColumn then
-            -- MENGGUNAKAN SIMBOL KEYBOARD STANDAR (^ v) AGAR ANTI-ERROR DI ANDROID
-            for _, btn in ipairs(ColumnsFrame:GetChildren()) do
-              if btn:IsA("TextButton") then
-                local colName = btn.Name
-                if colName == SortColumn then
-                  btn.Text = colName .. (SortDirection == "asc" and " ^" or " v")
-                else
-                  btn.Text = colName
+            -- Sorting Logic
+            if SortCol then
+              for _, btn in ipairs(ColFrame:GetChildren()) do
+                if btn:IsA("TextButton") then
+                  btn.Text = btn.Name .. (btn.Name == SortCol and (SortDir == "asc" and " ^" or " v") or "")
                 end
+              end
+              
+              table.sort(filtered, function(a, b)
+                local v1, v2 = a[SortCol] or 0, b[SortCol] or 0
+                if tonumber(v1) and tonumber(v2) then
+                  return SortDir == "asc" and tonumber(v1) < tonumber(v2) or tonumber(v1) > tonumber(v2)
+                else
+                  return SortDir == "asc" and tostring(v1):lower() < tostring(v2):lower() or tostring(v1):lower() > tostring(v2):lower()
+                end
+              end)
+            end
+
+            -- Buat baris baru
+            for i, row in ipairs(filtered) do
+              local RowFrame = Custom:Create("Frame", {
+                Name = "Row",
+                Size = UDim2.new(1, 0, 0, 25),
+                BackgroundColor3 = (i % 2 == 0) and Color3.fromRGB(25, 25, 25) or Color3.fromRGB(30, 30, 30),
+                BorderSizePixel = 0,
+                Parent = Scroll
+              })
+              
+              for colIndex, Column in ipairs(Columns) do
+                Custom:Create("TextLabel", {
+                  Text = " " .. tostring(row[Column] or ""), 
+                  Size = UDim2.new(ColumnWidth, 0, 1, 0), 
+                  Position = UDim2.new(ColumnWidth * (colIndex - 1), 0, 0, 0), 
+                  BackgroundTransparency = 1, 
+                  TextColor3 = (Column == "Harga") and Color3.fromRGB(255, 255, 100) or Color3.new(1,1,1), 
+                  TextXAlignment = (colIndex == 1) and Enum.TextXAlignment.Left or Enum.TextXAlignment.Center, 
+                  Font = Enum.Font.Gotham, 
+                  TextSize = 11, 
+                  Parent = RowFrame
+                })
+              end
+              
+              if #Actions > 0 then
+                local BuyBtn = Custom:Create("TextButton", {
+                  Text = Actions[1].Icon or "🛒",
+                  Size = UDim2.new(0, 30, 0, 18),
+                  Position = UDim2.new(ColumnWidth * #Columns + (ColumnWidth/2), -15, 0.5, -9),
+                  BackgroundColor3 = Custom.ColorRGB,
+                  TextColor3 = Color3.new(1,1,1),
+                  Font = Enum.Font.GothamBold,
+                  Parent = RowFrame
+                })
+                Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, BuyBtn)
+                BuyBtn.Activated:Connect(function() Actions[1].Callback(i, row) end)
               end
             end
             
-            table.sort(DisplayData, function(a, b)
-              local aVal = a[SortColumn] or ""
-              local bVal = b[SortColumn] or ""
-              local numA = tonumber(aVal)
-              local numB = tonumber(bVal)
-              
-              if numA and numB then
-                if SortDirection == "asc" then return numA < numB else return numA > numB end
-              else
-                local strA = string.lower(tostring(aVal))
-                local strB = string.lower(tostring(bVal))
-                if SortDirection == "asc" then return strA < strB else return strA > strB end
-              end
-            end)
-          end
-
-          for i = 1, #DisplayData do
-            local RowData = DisplayData[i]
-            local Row = Custom:Create("Frame", {
-              BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 0.93, BorderColor3 = Color3.fromRGB(100, 100, 100), BorderSizePixel = 1,
-              LayoutOrder = i, Size = UDim2.new(1, 0, 0, 24), Name = "Row"
-            }, RowsContainer)
-            Custom:Create("UICorner", {CornerRadius = UDim.new(0, 2)}, Row)
-
-            for colIndex, Column in ipairs(Columns) do
-              Custom:Create("TextLabel", {
-                Font = Enum.Font.Gotham, Text = tostring(RowData[Column] or ""), TextColor3 = Color3.fromRGB(200, 200, 200), TextSize = 11,
-                BackgroundTransparency = 0.999, Position = UDim2.new(ColumnWidth * (colIndex - 1), 0, 0, 0), Size = UDim2.new(ColumnWidth, 0, 1, 0)
-              }, Row)
-            end
-
-            if #Actions > 0 then
-              local ActionsCell = Custom:Create("Frame", { BackgroundTransparency = 0.999, Position = UDim2.new(ColumnWidth * #Columns, 0, 0, 0), Size = UDim2.new(ColumnWidth, 0, 1, 0) }, Row)
-              
-              -- MEMBUAT TOMBOL OTOMATIS KE TENGAH
-              Custom:Create("UIListLayout", {
-                FillDirection = Enum.FillDirection.Horizontal,
-                HorizontalAlignment = Enum.HorizontalAlignment.Center,
-                VerticalAlignment = Enum.VerticalAlignment.Center,
-                Padding = UDim.new(0, 4),
-                SortOrder = Enum.SortOrder.LayoutOrder
-              }, ActionsCell)
-
-              for actionIdx, Action in ipairs(Actions) do
-                local ActionBtn = Custom:Create("TextButton", {
-                  Font = Enum.Font.GothamBold, Text = Action.Icon or "🛒", TextColor3 = Color3.fromRGB(255, 255, 255), TextSize = 11,
-                  BackgroundColor3 = Custom.ColorRGB, BackgroundTransparency = 0.1, 
-                  Size = UDim2.new(0, 26, 0, 18), -- UKURAN KOTAK TETAP (PRESISI)
-                  LayoutOrder = actionIdx
-                }, ActionsCell)
-                Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, ActionBtn)
-                ActionBtn.Activated:Connect(function() CircleClick(ActionBtn, Player:GetMouse().X, Player:GetMouse().Y); Action.Callback(i, RowData) end)
-              end
-            end
-
-            -- Fitur RowButtons (Untuk berjaga-jaga jika kamu butuh)
-            if RowButtons and RowData.buttons then
-                local RowButtonsCell = Custom:Create("Frame", { BackgroundTransparency = 0.999, Position = UDim2.new(ColumnWidth * (#Columns + (#Actions > 0 and 1 or 0)), 0, 0, 0), Size = UDim2.new(ColumnWidth, 0, 1, 0) }, Row)
-                Custom:Create("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center, VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, RowButtonsCell)
-                
-                for btnIdx, ButtonConfig in ipairs(RowData.buttons) do
-                  local RowBtn = Custom:Create("TextButton", {
-                    Font = Enum.Font.GothamBold, Text = ButtonConfig.icon or "🔘", TextColor3 = Color3.fromRGB(255, 255, 255), TextSize = 11,
-                    BackgroundColor3 = ButtonConfig.color or Custom.ColorRGB, BackgroundTransparency = 0.1, 
-                    Size = UDim2.new(0, 26, 0, 18), 
-                    LayoutOrder = btnIdx
-                  }, RowButtonsCell)
-                  Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, RowBtn)
-                  RowBtn.Activated:Connect(function() CircleClick(RowBtn, Player:GetMouse().X, Player:GetMouse().Y); ButtonConfig.callback(i, RowData) end)
-                end
-            end
-
-          end
-
-          RowsContainer.CanvasSize = UDim2.new(0, 0, 0, (#DisplayData * 25))
+            Scroll.CanvasSize = UDim2.new(0, 0, 0, UIList.AbsoluteContentSize.Y)
+          end)
         end
 
-        if Data and #Data > 0 then TableFuncs:SetData(Data) end
+        function TableFuncs:SetData(newData)
+          TableData = newData or {}
+          self:RefreshTable()
+        end
+
+        Search:GetPropertyChangedSignal("Text"):Connect(function() TableFuncs:RefreshTable() end)
+        
         ItemCount += 1
         return TableFuncs
       end
 
+      
+        ItemCount += 1
+        CountDropdown += 1
+        return Funcs_Dropdown
+      end
 
       ItemCount += 1
       return Item
@@ -2365,5 +2380,7 @@ function Speed_Library:CreateWindow(Config)
 
   return Tabs
 end
+
+
 
 return Speed_Library
