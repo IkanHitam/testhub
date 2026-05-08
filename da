@@ -260,7 +260,7 @@ function Speed_Library:CreateWindow(Config)
       end
 
       -- ═══════════════════════════════════════════════════════════
-      -- BLOK LIVE TABLE MILIKMU (ANTI-ERROR)
+      -- BLOK LIVE TABLE MILIKMU (FIXED SCROLL & PRECISE BUTTON)
       -- ═══════════════════════════════════════════════════════════
       function Item:AddLiveTable(Cfg)
         local Title = Cfg.Title or "Live Table"
@@ -274,7 +274,7 @@ function Speed_Library:CreateWindow(Config)
 
         local TableContainer = Custom:Create("Frame", {
           Name = "LiveTableContainer",
-          Size = UDim2.new(1, 0, 0, 300),
+          Size = UDim2.new(1, 0, 0, 270), 
           BackgroundColor3 = Color3.fromRGB(20, 20, 20),
           Parent = SectionAdd
         })
@@ -317,12 +317,7 @@ function Speed_Library:CreateWindow(Config)
           })
 
           ColumnHeader.Activated:Connect(function()
-            if SortCol == Column then
-              SortDir = (SortDir == "asc") and "desc" or "asc"
-            else
-              SortCol = Column
-              SortDir = "asc"
-            end
+            if SortCol == Column then SortDir = (SortDir == "asc") and "desc" or "asc" else SortCol = Column; SortDir = "asc" end
             TableFuncs:RefreshTable()
           end)
         end
@@ -342,11 +337,14 @@ function Speed_Library:CreateWindow(Config)
         })
         local UIList = Custom:Create("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder}, Scroll)
 
+        -- [FIX SCROLL] OTOMATIS UPDATE AGAR TIDAK KOSONG
+        UIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            Scroll.CanvasSize = UDim2.new(0, 0, 0, UIList.AbsoluteContentSize.Y)
+        end)
+
         function TableFuncs:RefreshTable()
           local success, err = pcall(function()
-            for _, v in pairs(Scroll:GetChildren()) do 
-              if v:IsA("Frame") and v.Name == "Row" then v:Destroy() end 
-            end
+            for _, v in pairs(Scroll:GetChildren()) do if v:IsA("Frame") and v.Name == "Row" then v:Destroy() end end
             
             local q = Search.Text:lower()
             local filtered = {}
@@ -368,11 +366,11 @@ function Speed_Library:CreateWindow(Config)
                 local n2 = tonumber(v2)
                 
                 if n1 and n2 then
-                  if SortDir == "asc" then return n1 < n2 else return n1 > n2 end
+                  return SortDir == "asc" and n1 < n2 or n1 > n2
                 else
                   local s1 = tostring(v1):lower()
                   local s2 = tostring(v2):lower()
-                  if SortDir == "asc" then return s1 < s2 else return s1 > s2 end
+                  return SortDir == "asc" and s1 < s2 or s1 > s2
                 end
               end)
             end
@@ -400,28 +398,31 @@ function Speed_Library:CreateWindow(Config)
                 })
               end
               
+              -- [FIX TOMBOL] MENGGUNAKAN CELL FRAME AGAR TOMBOL PASTI PRESISI DI TENGAH
               if #Actions > 0 then
+                local ActionsCell = Custom:Create("Frame", {
+                  BackgroundTransparency = 1,
+                  Size = UDim2.new(ColumnWidth, 0, 1, 0),
+                  Position = UDim2.new(ColumnWidth * #Columns, 0, 0, 0),
+                  Parent = RowFrame
+                })
+                
                 local BuyBtn = Custom:Create("TextButton", {
                   Text = Actions[1].Icon or "🛒",
                   Size = UDim2.new(0, 30, 0, 18),
-                  Position = UDim2.new(ColumnWidth * #Columns + (ColumnWidth/2) - 15, -9, 0.5, 0), -- Disesuaikan
-                  AnchorPoint = Vector2.new(0.5, 0.5),
+                  Position = UDim2.new(0.5, -15, 0.5, -9), 
                   BackgroundColor3 = Custom.ColorRGB,
                   TextColor3 = Color3.new(1,1,1),
                   Font = Enum.Font.GothamBold,
-                  Parent = RowFrame
+                  Parent = ActionsCell
                 })
                 Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, BuyBtn)
                 BuyBtn.Activated:Connect(function() Actions[1].Callback(i, row) end)
               end
             end
-            
-            Scroll.CanvasSize = UDim2.new(0, 0, 0, UIList.AbsoluteContentSize.Y)
           end)
 
-          if not success then
-             warn("ERROR DI TABEL: " .. tostring(err))
-          end
+          if not success then warn("ERROR DI TABEL: " .. tostring(err)) end
         end
 
         function TableFuncs:SetData(newData)
