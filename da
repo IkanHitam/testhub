@@ -260,7 +260,7 @@ function Speed_Library:CreateWindow(Config)
       end
 
       -- ═══════════════════════════════════════════════════════════
-      -- BLOK LIVE TABLE MILIKMU (FIXED SCROLL & PRECISE BUTTON)
+      -- BLOK LIVE TABLE MILIKMU (FIXED SORTING ERROR)
       -- ═══════════════════════════════════════════════════════════
       function Item:AddLiveTable(Cfg)
         local Title = Cfg.Title or "Live Table"
@@ -337,7 +337,6 @@ function Speed_Library:CreateWindow(Config)
         })
         local UIList = Custom:Create("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder}, Scroll)
 
-        -- [FIX SCROLL] OTOMATIS UPDATE AGAR TIDAK KOSONG
         UIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
             Scroll.CanvasSize = UDim2.new(0, 0, 0, UIList.AbsoluteContentSize.Y)
         end)
@@ -359,18 +358,30 @@ function Speed_Library:CreateWindow(Config)
                 end
               end
               
+              -- [FIX ERROR] LOGIKA SORTING AMAN UNTUK NILAI YANG SAMA PERSIS
               table.sort(filtered, function(a, b)
-                local v1 = a[SortCol] or 0
-                local v2 = b[SortCol] or 0
+                local v1 = a[SortCol] or ""
+                local v2 = b[SortCol] or ""
+                
                 local n1 = tonumber(v1)
                 local n2 = tonumber(v2)
                 
                 if n1 and n2 then
-                  return SortDir == "asc" and n1 < n2 or n1 > n2
+                  if n1 == n2 then return false end -- Mencegah Error
+                  if SortDir == "asc" then
+                    return n1 < n2
+                  else
+                    return n1 > n2
+                  end
                 else
                   local s1 = tostring(v1):lower()
                   local s2 = tostring(v2):lower()
-                  return SortDir == "asc" and s1 < s2 or s1 > s2
+                  if s1 == s2 then return false end -- Mencegah Error
+                  if SortDir == "asc" then
+                    return s1 < s2
+                  else
+                    return s1 > s2
+                  end
                 end
               end)
             end
@@ -398,7 +409,6 @@ function Speed_Library:CreateWindow(Config)
                 })
               end
               
-              -- [FIX TOMBOL] MENGGUNAKAN CELL FRAME AGAR TOMBOL PASTI PRESISI DI TENGAH
               if #Actions > 0 then
                 local ActionsCell = Custom:Create("Frame", {
                   BackgroundTransparency = 1,
@@ -435,13 +445,3 @@ function Speed_Library:CreateWindow(Config)
         ItemCount += 1
         return TableFuncs
       end
-
-      ItemCount += 1
-      return Item
-    end
-    CountTab += 1
-    return Sections
-  end
-  return Tabs
-end
-return Speed_Library
