@@ -256,6 +256,9 @@ function Speed_Library:CreateWindow(Config)
         ItemCount = ItemCount + 1
       end
 
+      -- ═══════════════════════════════════════════════════════════
+      -- BLOK LIVE TABLE (FIX RENDER DELAY & SORTING CRASH)
+      -- ═══════════════════════════════════════════════════════════
       function Item:AddLiveTable(Cfg)
         local Title = Cfg.Title or "Live Table"
         local Columns = Cfg.Columns or {"Pet", "Age", "Harga"}
@@ -339,10 +342,13 @@ function Speed_Library:CreateWindow(Config)
           local success, err = pcall(function()
             for _, v in pairs(Scroll:GetChildren()) do if v:IsA("Frame") and v.Name == "Row" then v:Destroy() end end
             
-            local q = Search.Text:lower()
+            -- [FIX 1] Keamanan Search Bar yang lebih ketat
+            local q = (Search.Text or ""):lower()
             local filtered = {}
             for _, r in ipairs(TableData) do
-              if tostring(r.Pet or r.Name or ""):lower():find(q) then table.insert(filtered, r) end
+              if q == "" or tostring(r.Pet or r.Name or ""):lower():find(q) then 
+                  table.insert(filtered, r) 
+              end
             end
 
             if SortCol then
@@ -352,6 +358,7 @@ function Speed_Library:CreateWindow(Config)
                 end
               end
               
+              -- [FIX 2] Secondary Sort untuk mencegah Lua kebingungan jika harganya sama persis
               table.sort(filtered, function(a, b)
                 local v1 = a[SortCol] or ""
                 local v2 = b[SortCol] or ""
@@ -360,12 +367,12 @@ function Speed_Library:CreateWindow(Config)
                 local n2 = tonumber(v2)
                 
                 if n1 and n2 then
-                  if n1 == n2 then return false end
+                  if n1 == n2 then return tostring(a.Pet or "") < tostring(b.Pet or "") end
                   if SortDir == "asc" then return n1 < n2 else return n1 > n2 end
                 else
                   local s1 = tostring(v1):lower()
                   local s2 = tostring(v2):lower()
-                  if s1 == s2 then return false end
+                  if s1 == s2 then return tostring(a.Harga or 0) < tostring(b.Harga or 0) end
                   if SortDir == "asc" then return s1 < s2 else return s1 > s2 end
                 end
               end)
@@ -416,11 +423,18 @@ function Speed_Library:CreateWindow(Config)
               end
             end
           end)
+
+          if not success then warn("ERROR DI TABEL: " .. tostring(err)) end
         end
 
         function TableFuncs:SetData(newData)
           TableData = newData or {}
           self:RefreshTable()
+          
+          -- [FIX 3] "Pancingan" (Render Kick) agar langsung muncul tanpa diklik Search Bar
+          task.delay(0.1, function()
+             self:RefreshTable()
+          end)
         end
 
         Search:GetPropertyChangedSignal("Text"):Connect(function() TableFuncs:RefreshTable() end)
